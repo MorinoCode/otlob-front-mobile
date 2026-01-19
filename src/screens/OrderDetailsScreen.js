@@ -1,186 +1,336 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  Alert, 
-  ActivityIndicator, 
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
   ScrollView,
-  Animated
+  Linking,
+  Platform,
+  Alert
 } from 'react-native';
-import io from 'socket.io-client';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import api, { API_URL } from '../utils/api';
-
-// اتصال به سوکت (حذف /api از انتهای آدرس)
-const SOCKET_URL = API_URL.replace('/api', '');
-
-const STEPS = [
-  { id: 'PENDING', label: 'Order Placed', icon: 'clipboard-check-outline' },
-  { id: 'COOKING', label: 'Cooking', icon: 'stove' },
-  { id: 'READY', label: 'Ready for Pickup', icon: 'food' },
-  { id: 'COMPLETED', label: 'Completed', icon: 'check-circle-outline' },
-];
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import api from '../utils/api';
+import socket from '../utils/socket';
 
 const OrderDetailsScreen = ({ route, navigation }) => {
-  const { orderId, vendorId, carId } = route.params;
-  const [status, setStatus] = useState('PENDING'); 
-  const [socket, setSocket] = useState(null);
-  const [loading, setLoading] = useState(false);
-  
-  // انیمیشن برای دکمه "I'm Here"
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const { orderId } = route.params;
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [userRating, setUserRating] = useState(0);
 
   useEffect(() => {
-    // شروع انیمیشن تپش
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.1, duration: 800, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true })
-      ])
-    ).start();
+    fetchOrderDetails();
 
-    // اتصال سوکت
-    const newSocket = io(SOCKET_URL);
-    setSocket(newSocket);
+    // ۱. اتصال به اتاق مخصوص این سفارش در سوکت
+    socket.emit('join_order', orderId);
 
-    newSocket.on('connect', () => {
-      console.log('🔌 Socket Connected');
-      newSocket.emit('join_order', orderId); 
-    });
-
-    newSocket.on('order_status_updated', (data) => {
-      setStatus(data.status);
-      if (data.status === 'READY') {
-        Alert.alert('Food is Ready! 🍔', 'Please drive to the pickup zone and press "I\'m Here".');
+    // ۲. گوش دادن به تغییرات وضعیت از سمت سرور
+    socket.on('order_status_updated', (data) => {
+      console.log('⚡ Real-time update received:', data);
+      if (data.orderId === orderId) {
+        setOrder(prevOrder => ({
+          ...prevOrder,
+          status: data.status
+        }));
       }
     });
 
-    return () => newSocket.disconnect();
-  }, []);
+    // ۳. پولینگ به عنوان پشتیبان (هر ۱۰ ثانیه)
+    const interval = setInterval(fetchOrderDetails, 10000);
 
-  const handleIAmHere = () => {
-    if (!socket) return;
-    
-    // ارسال سیگنال به رستوران
-    socket.emit('i_am_here', {
-      vendorId: vendorId,
-      orderId: orderId,
-    });
+    return () => {
+      socket.off('order_status_updated');
+      clearInterval(interval);
+    };
+  }, [orderId]);
 
-    Alert.alert('Signal Sent! 📡', 'The restaurant staff has been notified that you are waiting outside.');
+  const fetchOrderDetails = async () => {
+    try {
+      const response = await api.get(`/orders/${orderId}`);
+      setOrder(response.data);
+      // اگر قبلاً امتیاز ثبت شده باشد، آن را نمایش می‌دهیم
+      if (response.data.rating) {
+        setUserRating(response.data.rating);
+      }
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching order details:', error.response?.status || error.message);
+      if (loading) setLoading(false);
+    }
   };
 
-  const getStepColor = (stepId) => {
-    const statusOrder = ['PENDING', 'COOKING', 'READY', 'COMPLETED'];
-    const currentIndex = statusOrder.indexOf(status);
-    const stepIndex = statusOrder.indexOf(stepId);
-
-    if (stepIndex < currentIndex) return '#4CAF50'; // گذشته (سبز)
-    if (stepIndex === currentIndex) return '#FF5722'; // حال (نارنجی)
-    return '#E0E0E0'; // آینده (خاکستری)
+  const handleRate = async (stars) => {
+    try {
+      await api.post(`/orders/${orderId}/rate`, { rating: stars });
+      setUserRating(stars);
+      Alert.alert("Thank you! ⭐", "Your feedback helps us improve.");
+    } catch (error) {
+      console.error('Rating Error:', error);
+      Alert.alert("Error", "Could not submit rating. Please try again.");
+    }
   };
+
+  const handleCall = (phoneNumber) => {
+    if (!phoneNumber) {
+      Alert.alert('Error', 'Restaurant phone number not available');
+      return;
+    }
+    Linking.openURL(`tel:${phoneNumber}`);
+  };
+
+  const getStatusStep = (status) => {
+    const steps = ['PENDING', 'COOKING', 'READY', 'COMPLETED'];
+    return steps.indexOf(status);
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#FF5722" />
+      </View>
+    );
+  }
+
+  if (!order) {
+    return (
+      <View style={styles.center}>
+        <Text>Order not found.</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{marginTop: 20}}>
+          <Text style={{color: '#FF5722'}}>Back to Home</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const currentStep = getStatusStep(order.status);
 
   return (
-    <View style={styles.container}>
-      
-      {/* Header */}
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.navigate('Main')} style={styles.backBtn}>
-          <Ionicons name="close" size={24} color="#333" />
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="close" size={28} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Order #{orderId.toString().slice(-4)}</Text>
-        <View style={{width: 40}} /> 
+        <Text style={styles.headerTitle}>Live Tracking</Text>
+        <TouchableOpacity onPress={() => handleCall(order.vendor_phone)}>
+          <Ionicons name="call" size={24} color="#FF5722" />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
-        {/* Status Tracker */}
-        <View style={styles.statusCard}>
-          <Text style={styles.cardTitle}>Status Timeline</Text>
-          <View style={styles.timeline}>
-            {STEPS.map((step, index) => (
-              <View key={step.id} style={styles.stepRow}>
-                <View style={styles.iconContainer}>
-                  <MaterialCommunityIcons 
-                    name={step.icon} 
-                    size={24} 
-                    color={getStepColor(step.id) === '#E0E0E0' ? '#999' : '#fff'} 
+        {/* Rating Section - Only shows if order is COMPLETED */}
+        {order.status === 'COMPLETED' && (
+          <View style={styles.ratingCard}>
+            <Text style={styles.ratingTitle}>Rate your experience</Text>
+            <View style={styles.starsRow}>
+              {[1, 2, 3, 4, 5].map((s) => (
+                <TouchableOpacity key={s} onPress={() => handleRate(s)}>
+                  <Ionicons 
+                    name={s <= userRating ? "star" : "star-outline"} 
+                    size={35} 
+                    color={s <= userRating ? "#FFD700" : "#ccc"} 
+                    style={{ marginHorizontal: 5 }}
                   />
-                  <View style={[styles.circle, { backgroundColor: getStepColor(step.id) }]} />
-                  {index !== STEPS.length - 1 && <View style={styles.line} />}
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={styles.ratingHint}>
+              {userRating > 0 ? "Thanks for your feedback!" : "How was the food and service?"}
+            </Text>
+          </View>
+        )}
+
+        {/* Real-time Timeline */}
+        <View style={styles.statusCard}>
+          <Text style={styles.sectionTitle}>Order Progress</Text>
+          <View style={styles.timeline}>
+            {[
+              { label: 'Order Placed', icon: 'clipboard-check', status: 'PENDING' },
+              { label: 'Cooking', icon: 'fire', status: 'COOKING' },
+              { label: 'Ready for Pickup', icon: 'shuttle-van', status: 'READY' },
+              { label: 'Completed', icon: 'check-double', status: 'COMPLETED' },
+            ].map((step, index) => (
+              <View key={index} style={styles.timelineItem}>
+                <View style={styles.iconColumn}>
+                  <View style={[
+                    styles.iconCircle, 
+                    index <= currentStep ? styles.activeCircle : styles.inactiveCircle
+                  ]}>
+                    <FontAwesome5 
+                      name={step.icon} 
+                      size={14} 
+                      color={index <= currentStep ? '#fff' : '#ccc'} 
+                    />
+                  </View>
+                  {index < 3 && <View style={[
+                    styles.line, 
+                    index < currentStep ? styles.activeLine : styles.inactiveLine
+                  ]} />}
                 </View>
-                <View style={styles.textContainer}>
-                  <Text style={[styles.stepLabel, { 
-                    color: getStepColor(step.id) === '#E0E0E0' ? '#999' : '#333',
-                    fontWeight: status === step.id ? 'bold' : 'normal'
-                  }]}>
+                <View style={styles.textColumn}>
+                  <Text style={[
+                    styles.statusLabel, 
+                    index <= currentStep ? styles.activeText : styles.inactiveText
+                  ]}>
                     {step.label}
                   </Text>
-                  {status === step.id && <Text style={styles.activeBadge}>Current Step</Text>}
+                  {index === currentStep && (
+                    <Text style={styles.currentStepBadge}>Processing Now</Text>
+                  )}
                 </View>
               </View>
             ))}
           </View>
         </View>
 
-        {/* Action Area */}
-        <View style={styles.actionArea}>
-          <Text style={styles.instructionText}>
-            Please park your car in the designated area.
-          </Text>
-          
-          <Animated.View style={{ transform: [{ scale: status === 'READY' ? pulseAnim : 1 }] }}>
-            <TouchableOpacity 
-              style={[
-                styles.bigButton, 
-                status !== 'READY' && status !== 'COOKING' && status !== 'PENDING' && styles.disabledButton 
-              ]}
-              onPress={handleIAmHere}
-              disabled={status === 'COMPLETED'}
-            >
-              <MaterialCommunityIcons name="car-connected" size={40} color="#fff" />
-              <Text style={styles.bigButtonText}>I'VE ARRIVED 🚗</Text>
-              <Text style={styles.bigButtonSub}>Tap when you are at the restaurant</Text>
-            </TouchableOpacity>
-          </Animated.View>
+        {/* Info & Notes */}
+        <View style={styles.infoSection}>
+          <View style={styles.detailsRow}>
+            <View style={styles.detailBox}>
+              <Ionicons name="car-sport" size={24} color="#FF5722" />
+              <Text style={styles.detailLabel}>My Vehicle</Text>
+              <Text style={styles.detailValue}>{order.car_model}</Text>
+              <Text style={styles.detailSubValue}>{order.car_plate}</Text>
+            </View>
+            <View style={styles.detailBox}>
+              <MaterialCommunityIcons name="storefront" size={24} color="#FF5722" />
+              <Text style={styles.detailLabel}>From</Text>
+              <Text style={styles.detailValue} numberOfLines={1}>{order.vendor_name}</Text>
+              <TouchableOpacity onPress={() => handleCall(order.vendor_phone)}>
+                <Text style={styles.callLink}>Call Support</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.noteSection}>
+            <Text style={styles.noteTitle}>Your Pickup Instructions</Text>
+            <View style={styles.noteContent}>
+              <MaterialCommunityIcons name="comment-text-outline" size={20} color="#666" />
+              <Text style={styles.noteText}>
+                {order.customer_note || "No specific note provided."}
+              </Text>
+            </View>
+          </View>
         </View>
 
+        {/* Action Button */}
+        {order.status !== 'COMPLETED' && (
+          <TouchableOpacity 
+            style={[
+              styles.arrivedBtn, 
+              order.status === 'READY' ? styles.btnActive : styles.btnDisabled
+            ]}
+            onPress={() => {
+              if(order.status === 'READY') {
+                Alert.alert("Restaurant Notified", "They will bring the order to your car immediately.");
+              } else {
+                Alert.alert("Hang tight!", "The restaurant is still preparing your food.");
+              }
+            }}
+          >
+            <MaterialCommunityIcons name="car-connected" size={32} color="#fff" />
+            <Text style={styles.arrivedText}>I'M HERE 🏎️</Text>
+            <Text style={styles.arrivedSubText}>Wait for 'Ready' status to notify restaurant</Text>
+          </TouchableOpacity>
+        )}
+
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9F9F9' },
-  
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 50, paddingBottom: 15, paddingHorizontal: 20, backgroundColor: '#fff', elevation: 2 },
+  container: { flex: 1, backgroundColor: '#fff' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderColor: '#f0f0f0'
+  },
   headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },
-  backBtn: { padding: 5 },
-
-  content: { padding: 20 },
-
-  statusCard: { backgroundColor: '#fff', borderRadius: 15, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.05, elevation: 3 },
-  cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#666', marginBottom: 20 },
+  scrollContent: { padding: 20 },
   
-  timeline: { paddingLeft: 10 },
-  stepRow: { flexDirection: 'row', marginBottom: 25 },
-  iconContainer: { alignItems: 'center', marginRight: 15, width: 30 },
-  circle: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 15, opacity: 0.2, zIndex: -1 },
-  line: { width: 2, height: 30, backgroundColor: '#eee', position: 'absolute', top: 30, left: 14 },
-  
-  textContainer: { justifyContent: 'center' },
-  stepLabel: { fontSize: 16 },
-  activeBadge: { color: '#FF5722', fontSize: 12, fontWeight: 'bold', marginTop: 2 },
+  // Rating Style
+  ratingCard: {
+    backgroundColor: '#FFF9C4',
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+  },
+  ratingTitle: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 10 },
+  starsRow: { flexDirection: 'row', marginBottom: 10 },
+  ratingHint: { fontSize: 12, color: '#777' },
 
-  actionArea: { alignItems: 'center', marginTop: 20 },
-  instructionText: { color: '#666', marginBottom: 20, fontStyle: 'italic' },
-  
-  bigButton: { backgroundColor: '#FF5722', width: '100%', paddingVertical: 25, borderRadius: 20, alignItems: 'center', shadowColor: '#FF5722', shadowOpacity: 0.4, shadowOffset: {width:0, height:5}, elevation: 10 },
-  disabledButton: { backgroundColor: '#ccc', shadowOpacity: 0 },
-  bigButtonText: { color: '#fff', fontSize: 22, fontWeight: 'bold', marginTop: 10 },
-  bigButtonSub: { color: 'rgba(255,255,255,0.8)', fontSize: 14, marginTop: 5 }
+  statusCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
+    marginBottom: 20
+  },
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#444', marginBottom: 20 },
+  timeline: { paddingLeft: 5 },
+  timelineItem: { flexDirection: 'row', minHeight: 60 },
+  iconColumn: { alignItems: 'center', marginRight: 15 },
+  iconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2
+  },
+  activeCircle: { backgroundColor: '#FF5722' },
+  inactiveCircle: { backgroundColor: '#F5F5F5', borderWidth: 1, borderColor: '#eee' },
+  line: { width: 2, flex: 1, marginVertical: -4, zIndex: 1 },
+  activeLine: { backgroundColor: '#FF5722' },
+  inactiveLine: { backgroundColor: '#eee' },
+  textColumn: { paddingTop: 2 },
+  statusLabel: { fontSize: 15, fontWeight: '600' },
+  activeText: { color: '#333' },
+  inactiveText: { color: '#bbb' },
+  currentStepBadge: { color: '#FF5722', fontSize: 11, fontWeight: '700', marginTop: 1 },
+  infoSection: { marginTop: 5 },
+  detailsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
+  detailBox: { backgroundColor: '#F9F9F9', width: '48%', padding: 12, borderRadius: 12, alignItems: 'center' },
+  detailLabel: { color: '#999', fontSize: 11, marginTop: 4 },
+  detailValue: { fontWeight: 'bold', color: '#333', fontSize: 13, marginTop: 2 },
+  detailSubValue: { color: '#FF5722', fontSize: 10, fontWeight: 'bold' },
+  callLink: { color: '#2196F3', fontSize: 11, marginTop: 4, textDecorationLine: 'underline' },
+  noteSection: { backgroundColor: '#FFF8F1', padding: 12, borderRadius: 12, borderLeftWidth: 4, borderLeftColor: '#FF5722' },
+  noteTitle: { fontSize: 12, fontWeight: 'bold', color: '#FF5722', marginBottom: 4 },
+  noteContent: { flexDirection: 'row', alignItems: 'center' },
+  noteText: { flex: 1, marginLeft: 8, fontSize: 13, color: '#555', lineHeight: 18 },
+  arrivedBtn: {
+    backgroundColor: '#FF5722',
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    marginTop: 20,
+    shadowColor: '#FF5722',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6
+  },
+  btnActive: { opacity: 1 },
+  btnDisabled: { backgroundColor: '#FFCCBC' },
+  arrivedText: { color: '#fff', fontSize: 20, fontWeight: 'bold', marginTop: 5 },
+  arrivedSubText: { color: '#fff', fontSize: 12, opacity: 0.9, marginTop: 2 }
 });
 
 export default OrderDetailsScreen;
