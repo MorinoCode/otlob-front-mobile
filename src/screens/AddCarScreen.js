@@ -1,5 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, SafeAreaView } from 'react-native';
 import api from '../utils/api';
 
 const AddCarScreen = ({ navigation }) => {
@@ -34,57 +35,78 @@ const AddCarScreen = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Add New Car</Text>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Car Model (e.g., Toyota Prado)</Text>
-        <TextInput
-          style={styles.input}
-          value={model}
-          onChangeText={setModel}
-          placeholder="Enter model"
-        />
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Add New Car</Text>
+        <View style={{ width: 40 }} />
       </View>
 
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Color</Text>
-        <TextInput
-          style={styles.input}
-          value={color}
-          onChangeText={setColor}
-          placeholder="Enter color"
-        />
-      </View>
+      <View style={styles.content}>
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Car Model (e.g., Toyota Prado)</Text>
+          <TextInput
+            style={styles.input}
+            value={model}
+            onChangeText={setModel}
+            placeholder="Enter model"
+          />
+        </View>
 
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Plate Number (Optional)</Text>
-        <TextInput
-          style={styles.input}
-          value={plate}
-          onChangeText={setPlate}
-          placeholder="e.g., 50-12345"
-        />
-      </View>
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Color</Text>
+          <TextInput
+            style={styles.input}
+            value={color}
+            onChangeText={setColor}
+            placeholder="Enter color"
+          />
+        </View>
 
-      <TouchableOpacity 
-        style={styles.saveButton} 
-        onPress={handleAddCar}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.saveButtonText}>Save Car</Text>
-        )}
-      </TouchableOpacity>
-    </View>
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Plate Number (Optional)</Text>
+          <TextInput
+            style={styles.input}
+            value={plate}
+            onChangeText={setPlate}
+            placeholder="e.g., 50-12345"
+          />
+        </View>
+
+        <TouchableOpacity 
+          style={styles.saveButton} 
+          onPress={handleAddCar}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.saveButtonText}>Save Car</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', padding: 20 },
-  header: { fontSize: 24, fontWeight: 'bold', marginBottom: 30, marginTop: 20 },
+  container: { flex: 1, backgroundColor: '#fff' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 50,
+    paddingBottom: 15,
+    paddingHorizontal: 20,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },
+  backBtn: { padding: 5 },
+  content: { padding: 20 },
   inputGroup: { marginBottom: 20 },
   label: { fontSize: 16, marginBottom: 8, color: '#333', fontWeight: '500' },
   input: { backgroundColor: '#f9f9f9', borderWidth: 1, borderColor: '#eee', padding: 15, borderRadius: 10, fontSize: 16 },
