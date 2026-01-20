@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import { Audio } from 'expo-av';
+import * as Location from 'expo-location';
 import api from '../utils/api';
 import socket from '../utils/socket';
 
@@ -20,12 +22,25 @@ const OrderDetailsScreen = ({ route, navigation }) => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userRating, setUserRating] = useState(0);
+  const [lastClickTime, setLastClickTime] = useState(null);
+  const [isArrivedClicked, setIsArrivedClicked] = useState(false);
+  const soundRef = useRef(null);
 
   useEffect(() => {
     fetchOrderDetails();
 
-    // ۱. اتصال به اتاق مخصوص این سفارش در سوکت
-    socket.emit('join_order', orderId);
+    // Check socket connection
+    console.log('🔌 Socket connected:', socket.connected);
+    if (!socket.connected) {
+      console.log('⚠️ Socket not connected, waiting for connection...');
+      socket.on('connect', () => {
+        console.log('✅ Socket connected!');
+        socket.emit('join_order', orderId);
+      });
+    } else {
+      // ۱. اتصال به اتاق مخصوص این سفارش در سوکت
+      socket.emit('join_order', orderId);
+    }
 
     // ۲. گوش دادن به تغییرات وضعیت از سمت سرور
     socket.on('order_status_updated', (data) => {
@@ -41,16 +56,70 @@ const OrderDetailsScreen = ({ route, navigation }) => {
     // ۳. پولینگ به عنوان پشتیبان (هر ۱۰ ثانیه)
     const interval = setInterval(fetchOrderDetails, 10000);
 
+    // Load sound file
+    loadSound();
+
     return () => {
       socket.off('order_status_updated');
+      socket.off('connect');
       clearInterval(interval);
+      unloadSound();
     };
   }, [orderId]);
+
+  const loadSound = async () => {
+    try {
+      const { sound } = await Audio.Sound.createAsync(
+        require('../../assets/sounds/beep.mp3')
+      );
+      soundRef.current = sound;
+    } catch (error) {
+      console.log('Error loading sound:', error);
+    }
+  };
+
+  const unloadSound = async () => {
+    if (soundRef.current) {
+      await soundRef.current.unloadAsync();
+      soundRef.current = null;
+    }
+  };
+
+  const playSound = async () => {
+    try {
+      console.log('🔊 Attempting to play sound...');
+      if (soundRef.current) {
+        console.log('Sound ref exists, playing...');
+        await soundRef.current.setPositionAsync(0);
+        await soundRef.current.playAsync();
+        console.log('✅ Sound played successfully');
+      } else {
+        console.log('⚠️ Sound ref is null, trying to reload...');
+        await loadSound();
+        if (soundRef.current) {
+          await soundRef.current.playAsync();
+          console.log('✅ Sound played after reload');
+        }
+      }
+    } catch (error) {
+      console.log('❌ Error playing sound:', error);
+      console.log('Error details:', error.message);
+    }
+  };
 
   const fetchOrderDetails = async () => {
     try {
       const response = await api.get(`/orders/${orderId}`);
       setOrder(response.data);
+      // Debug: Log order data to check vendor_phone
+      console.log('📞 Order Details:', {
+        id: response.data.id,
+        vendor_id: response.data.vendor_id,
+        vendor_name: response.data.vendor_name,
+        vendor_phone: response.data.vendor_phone,
+        vendor_address: response.data.vendor_address,
+        status: response.data.status,
+      });
       // اگر قبلاً امتیاز ثبت شده باشد، آن را نمایش می‌دهیم
       if (response.data.rating) {
         setUserRating(response.data.rating);
@@ -79,6 +148,134 @@ const OrderDetailsScreen = ({ route, navigation }) => {
       return;
     }
     Linking.openURL(`tel:${phoneNumber}`);
+  };
+
+  const navigateToRestaurant = () => {
+    if (!order.vendor_latitude || !order.vendor_longitude) {
+      Alert.alert('Error', 'Restaurant location not available');
+      return;
+    }
+
+    const { vendor_latitude, vendor_longitude, vendor_address } = order;
+    const lat = parseFloat(vendor_latitude);
+    const lng = parseFloat(vendor_longitude);
+
+    let url;
+    if (Platform.OS === 'ios') {
+      // iOS Maps
+      url = `maps://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`;
+    } else {
+      // Android - Google Maps
+      url = `google.navigation:q=${lat},${lng}`;
+    }
+
+    Linking.openURL(url).catch(() => {
+      // Fallback to web-based maps if app is not installed
+      const fallbackUrl = Platform.OS === 'ios'
+        ? `https://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`
+        : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+      Linking.openURL(fallbackUrl);
+    });
+  };
+
+  const canClickArrived = () => {
+    if (!lastClickTime) return true;
+    const now = Date.now();
+    const threeMinutes = 3 * 60 * 1000; // 3 minutes in milliseconds
+    return (now - lastClickTime) >= threeMinutes;
+  };
+
+  const getRemainingTime = () => {
+    if (!lastClickTime) return 0;
+    const now = Date.now();
+    const threeMinutes = 3 * 60 * 1000;
+    const remaining = Math.ceil((threeMinutes - (now - lastClickTime)) / 1000);
+    return Math.max(0, remaining);
+  };
+
+  const handleArrivedClick = async () => {
+    console.log('🔘 I\'M HERE button clicked!');
+    console.log('Order status:', order.status);
+    console.log('Order ID:', order.id);
+    console.log('Vendor ID:', order.vendor_id);
+
+    if (!canClickArrived()) {
+      console.log('⏱️ Cooldown active, cannot click');
+      Alert.alert("Please wait", `You can notify again in ${getRemainingTime()} seconds.`);
+      return;
+    }
+
+    try {
+      console.log('📍 Requesting location permission...');
+      // Request location permission and get current location
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      console.log('Location permission status:', status);
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Location permission is required to notify restaurant.');
+        return;
+      }
+
+      console.log('📍 Getting current location...');
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High
+      });
+      console.log('Location received:', location.coords);
+      const { latitude, longitude } = location.coords;
+
+      // Play sound
+      console.log('🔊 Playing sound...');
+      await playSound();
+
+      // Send notification to vendor via socket
+      console.log('📡 Sending socket event i_am_here...');
+      console.log('Socket connected:', socket.connected);
+      
+      const socketData = {
+        vendorId: order.vendor_id,
+        orderId: order.id,
+        location: {
+          latitude,
+          longitude
+        },
+        timestamp: new Date().toISOString()
+      };
+      console.log('Socket data to send:', JSON.stringify(socketData, null, 2));
+      
+      // Ensure socket is connected
+      if (!socket.connected) {
+        console.log('⚠️ Socket not connected, waiting for connection...');
+        socket.connect();
+        socket.once('connect', () => {
+          console.log('✅ Socket connected, emitting event...');
+          socket.emit('i_am_here', socketData);
+        });
+      } else {
+        socket.emit('i_am_here', socketData);
+        console.log('✅ Socket event emitted');
+      }
+
+      // Update state
+      setLastClickTime(Date.now());
+      setIsArrivedClicked(true);
+      console.log('✅ State updated');
+
+      Alert.alert(
+        "Restaurant Notified! 🎉",
+        "They will bring the order to your car immediately.",
+        [{ text: "OK" }]
+      );
+
+      // Reset button state after 3 minutes
+      setTimeout(() => {
+        setIsArrivedClicked(false);
+      }, 3 * 60 * 1000);
+
+    } catch (error) {
+      console.error('❌ Error in handleArrivedClick:', error);
+      console.error('Error details:', error.message);
+      Alert.alert("Error", `Could not send notification: ${error.message || 'Please try again.'}`);
+    }
   };
 
   const getStatusStep = (status) => {
@@ -114,9 +311,16 @@ const OrderDetailsScreen = ({ route, navigation }) => {
           <Ionicons name="close" size={28} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Live Tracking</Text>
-        <TouchableOpacity onPress={() => handleCall(order.vendor_phone)}>
-          <Ionicons name="call" size={24} color="#FF5722" />
-        </TouchableOpacity>
+        {order.vendor_latitude && order.vendor_longitude ? (
+          <TouchableOpacity 
+            onPress={navigateToRestaurant}
+            style={styles.navigateButton}
+          >
+            <Ionicons name="navigate" size={24} color="#FF5722" />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 28 }} />
+        )}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -199,8 +403,34 @@ const OrderDetailsScreen = ({ route, navigation }) => {
               <MaterialCommunityIcons name="storefront" size={24} color="#FF5722" />
               <Text style={styles.detailLabel}>From</Text>
               <Text style={styles.detailValue} numberOfLines={1}>{order.vendor_name}</Text>
-              <TouchableOpacity onPress={() => handleCall(order.vendor_phone)}>
-                <Text style={styles.callLink}>Call Support</Text>
+              {order.vendor_address && (
+                <Text style={styles.addressText} numberOfLines={2}>{order.vendor_address}</Text>
+              )}
+              <TouchableOpacity 
+                onPress={() => {
+                  if (order.vendor_phone) {
+                    handleCall(order.vendor_phone);
+                  } else {
+                    Alert.alert('No Phone Number', 'Restaurant phone number is not available');
+                  }
+                }}
+                style={[
+                  styles.callRestaurantLink,
+                  !order.vendor_phone && styles.callRestaurantLinkDisabled
+                ]}
+                disabled={!order.vendor_phone}
+              >
+                <Ionicons 
+                  name="call-outline" 
+                  size={14} 
+                  color={order.vendor_phone ? "#2196F3" : "#999"} 
+                />
+                <Text style={[
+                  styles.callRestaurantText,
+                  !order.vendor_phone && styles.callRestaurantTextDisabled
+                ]}>
+                  {order.vendor_phone ? 'Call Restaurant' : 'Phone Not Available'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -216,24 +446,60 @@ const OrderDetailsScreen = ({ route, navigation }) => {
           </View>
         </View>
 
+        {/* Navigate to Restaurant Button */}
+        {order.status !== 'COMPLETED' && order.vendor_latitude && order.vendor_longitude && (
+          <TouchableOpacity 
+            style={styles.navigateBtn}
+            onPress={navigateToRestaurant}
+          >
+            <MaterialCommunityIcons name="map-marker" size={24} color="#fff" />
+            <View style={styles.navigateBtnTextContainer}>
+              <Text style={styles.navigateBtnText}>Navigate to Restaurant</Text>
+              <Text style={styles.navigateBtnSubText}>Open Maps for directions</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#fff" />
+          </TouchableOpacity>
+        )}
+
         {/* Action Button */}
         {order.status !== 'COMPLETED' && (
           <TouchableOpacity 
             style={[
               styles.arrivedBtn, 
-              order.status === 'READY' ? styles.btnActive : styles.btnDisabled
+              styles.btnActive,
+              isArrivedClicked && styles.btnArrivedClicked,
+              !canClickArrived() && styles.btnDisabledClick
             ]}
             onPress={() => {
-              if(order.status === 'READY') {
-                Alert.alert("Restaurant Notified", "They will bring the order to your car immediately.");
-              } else {
-                Alert.alert("Hang tight!", "The restaurant is still preparing your food.");
-              }
+              console.log('TouchableOpacity onPress triggered');
+              console.log('Can click:', canClickArrived());
+              handleArrivedClick();
             }}
+            disabled={!canClickArrived()}
+            activeOpacity={0.7}
           >
-            <MaterialCommunityIcons name="car-connected" size={32} color="#fff" />
-            <Text style={styles.arrivedText}>I'M HERE 🏎️</Text>
-            <Text style={styles.arrivedSubText}>Wait for 'Ready' status to notify restaurant</Text>
+            <View style={styles.arrivedBtnContent}>
+              <MaterialCommunityIcons 
+                name={isArrivedClicked ? "check-circle" : "car-connected"} 
+                size={36} 
+                color="#fff" 
+              />
+              <View style={styles.arrivedBtnTextContainer}>
+                <Text style={styles.arrivedText}>
+                  {isArrivedClicked ? "NOTIFIED ✓" : "I'M HERE 🚗"}
+                </Text>
+                <Text style={styles.arrivedSubText}>
+                  {isArrivedClicked 
+                    ? "Restaurant has been notified!" 
+                    : "Notify restaurant that you have arrived"}
+                </Text>
+                {!canClickArrived() && lastClickTime && (
+                  <Text style={styles.cooldownText}>
+                    Available in {getRemainingTime()}s
+                  </Text>
+                )}
+              </View>
+            </View>
           </TouchableOpacity>
         )}
 
@@ -255,6 +521,9 @@ const styles = StyleSheet.create({
     borderColor: '#f0f0f0'
   },
   headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },
+  navigateButton: {
+    padding: 4,
+  },
   scrollContent: { padding: 20 },
   
   // Rating Style
@@ -311,26 +580,120 @@ const styles = StyleSheet.create({
   detailLabel: { color: '#999', fontSize: 11, marginTop: 4 },
   detailValue: { fontWeight: 'bold', color: '#333', fontSize: 13, marginTop: 2 },
   detailSubValue: { color: '#FF5722', fontSize: 10, fontWeight: 'bold' },
-  callLink: { color: '#2196F3', fontSize: 11, marginTop: 4, textDecorationLine: 'underline' },
+  addressText: { color: '#666', fontSize: 11, marginTop: 4, textAlign: 'center' },
+  callRestaurantLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: '#E3F2FD',
+  },
+  callRestaurantText: {
+    color: '#2196F3',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  callRestaurantLinkDisabled: {
+    backgroundColor: '#F5F5F5',
+    opacity: 0.6,
+  },
+  callRestaurantTextDisabled: {
+    color: '#999',
+  },
   noteSection: { backgroundColor: '#FFF8F1', padding: 12, borderRadius: 12, borderLeftWidth: 4, borderLeftColor: '#FF5722' },
   noteTitle: { fontSize: 12, fontWeight: 'bold', color: '#FF5722', marginBottom: 4 },
   noteContent: { flexDirection: 'row', alignItems: 'center' },
   noteText: { flex: 1, marginLeft: 8, fontSize: 13, color: '#555', lineHeight: 18 },
   arrivedBtn: {
     backgroundColor: '#FF5722',
-    borderRadius: 20,
-    padding: 20,
-    alignItems: 'center',
+    borderRadius: 24,
+    padding: 24,
     marginTop: 20,
     shadowColor: '#FF5722',
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  btnActive: { 
+    opacity: 1,
+    backgroundColor: '#4CAF50',
+  },
+  btnDisabled: { 
+    backgroundColor: '#FFCCBC',
+    opacity: 0.7,
+  },
+  btnDisabledClick: {
+    opacity: 0.5,
+  },
+  btnArrivedClicked: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#2E7D32',
+  },
+  arrivedBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  arrivedBtnTextContainer: {
+    marginLeft: 16,
+    alignItems: 'center',
+    flex: 1,
+  },
+  arrivedText: { 
+    color: '#fff', 
+    fontSize: 22, 
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  arrivedSubText: { 
+    color: '#fff', 
+    fontSize: 13, 
+    opacity: 0.95, 
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  cooldownText: {
+    color: '#fff',
+    fontSize: 11,
+    opacity: 0.8,
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  
+  // Navigate Button Styles
+  navigateBtn: {
+    backgroundColor: '#2196F3',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    shadowColor: '#2196F3',
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 6
+    elevation: 4,
   },
-  btnActive: { opacity: 1 },
-  btnDisabled: { backgroundColor: '#FFCCBC' },
-  arrivedText: { color: '#fff', fontSize: 20, fontWeight: 'bold', marginTop: 5 },
-  arrivedSubText: { color: '#fff', fontSize: 12, opacity: 0.9, marginTop: 2 }
+  navigateBtnTextContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  navigateBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  navigateBtnSubText: {
+    color: '#fff',
+    fontSize: 12,
+    opacity: 0.9,
+    marginTop: 2,
+  },
 });
 
 export default OrderDetailsScreen;
