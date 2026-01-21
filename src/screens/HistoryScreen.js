@@ -14,9 +14,11 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../utils/api';
 import { useCart } from '../context/CartContext';
 import { useI18n } from '../context/I18nContext';
+import { useTheme } from '../context/ThemeContext';
 
 const HistoryScreen = ({ navigation }) => {
   const { t } = useI18n();
+  const { colors } = useTheme();
   const [activeTab, setActiveTab] = useState('active');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -100,14 +102,14 @@ const HistoryScreen = ({ navigation }) => {
     const statusStyle = getStatusStyle(item.status);
     
     return (
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: colors.card }]}>
         <TouchableOpacity 
           onPress={() => navigation.navigate('OrderDetails', { orderId: item.id })}
         >
           <View style={styles.cardHeader}>
             <View>
-              <Text style={styles.vendorName}>{item.vendor_name}</Text>
-              <Text style={styles.orderId}>Order #{item.id.toString().slice(-4)}</Text>
+              <Text style={[styles.vendorName, { color: colors.text }]}>{item.vendor_name}</Text>
+              <Text style={[styles.orderId, { color: colors.textLight }]}>Order #{item.id.toString().slice(-4)}</Text>
             </View>
             <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
               <Text style={[styles.statusText, { color: statusStyle.text }]}>{statusStyle.label}</Text>
@@ -116,8 +118,8 @@ const HistoryScreen = ({ navigation }) => {
 
           <View style={styles.cardBody}>
             <View style={styles.infoRow}>
-              <Ionicons name="calendar-outline" size={14} color="#999" />
-              <Text style={styles.dateText}>
+              <Ionicons name="calendar-outline" size={14} color={colors.textLight} />
+              <Text style={[styles.dateText, { color: colors.textLight }]}>
                 {new Date(item.created_at).toLocaleDateString('en-US', { 
                   year: 'numeric', 
                   month: 'short', 
@@ -127,23 +129,23 @@ const HistoryScreen = ({ navigation }) => {
                 })}
               </Text>
             </View>
-            <Text style={styles.priceText}>{Number(item.total_price).toFixed(3)} KD</Text>
+            <Text style={[styles.priceText, { color: colors.text }]}>{Number(item.total_price).toFixed(3)} KD</Text>
           </View>
         </TouchableOpacity>
 
         {/* دکمه‌های عملیاتی */}
-        <View style={styles.actionsRow}>
+        <View style={[styles.actionsRow, { borderTopColor: colors.border }]}>
           {item.status === 'COMPLETED' ? (
             <TouchableOpacity 
-              style={styles.reOrderBtn} 
+              style={[styles.reOrderBtn, { borderColor: colors.primary }]} 
               onPress={() => handleReOrder(item)}
             >
-              <Ionicons name="refresh" size={16} color="#FF5722" />
-              <Text style={styles.reOrderText}>{t('orders.reOrder')}</Text>
+              <Ionicons name="refresh" size={16} color={colors.primary} />
+              <Text style={[styles.reOrderText, { color: colors.primary }]}>{t('orders.reOrder')}</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity 
-              style={styles.trackBtn} 
+              style={[styles.trackBtn, { backgroundColor: colors.primary }]} 
               onPress={() => navigation.navigate('OrderDetails', { orderId: item.id })}
             >
               <Text style={styles.trackText}>{t('orders.trackOrder')}</Text>
@@ -158,19 +160,19 @@ const HistoryScreen = ({ navigation }) => {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#FF5722" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t('orders.orders')}</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('orders.orders')}</Text>
         <TouchableOpacity style={styles.cartButton} onPress={showCart}>
-          <Ionicons name="cart-outline" size={28} color="#333" />
+          <Ionicons name="cart-outline" size={28} color={colors.text} />
           {totalItems > 0 && (
-            <View style={styles.cartBadge}>
+            <View style={[styles.cartBadge, { backgroundColor: colors.primary }]}>
               <Text style={styles.cartBadgeText}>{totalItems}</Text>
             </View>
           )}
@@ -178,25 +180,25 @@ const HistoryScreen = ({ navigation }) => {
       </View>
 
       {/* Tabs */}
-      <View style={styles.tabContainer}>
+      <View style={[styles.tabContainer, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity 
           style={[styles.tab, activeTab === 'active' && styles.tabActive]}
           onPress={() => setActiveTab('active')}
         >
-          <Text style={[styles.tabText, activeTab === 'active' && styles.tabTextActive]}>
+          <Text style={[styles.tabText, { color: colors.textLight }, activeTab === 'active' && { color: colors.primary }]}>
             {t('orders.activeOrders')}
           </Text>
-          {activeTab === 'active' && <View style={styles.tabIndicator} />}
+          {activeTab === 'active' && <View style={[styles.tabIndicator, { backgroundColor: colors.primary }]} />}
         </TouchableOpacity>
         
         <TouchableOpacity 
           style={[styles.tab, activeTab === 'history' && styles.tabActive]}
           onPress={() => setActiveTab('history')}
         >
-          <Text style={[styles.tabText, activeTab === 'history' && styles.tabTextActive]}>
+          <Text style={[styles.tabText, { color: colors.textLight }, activeTab === 'history' && { color: colors.primary }]}>
             {t('orders.orderHistory')}
           </Text>
-          {activeTab === 'history' && <View style={styles.tabIndicator} />}
+          {activeTab === 'history' && <View style={[styles.tabIndicator, { backgroundColor: colors.primary }]} />}
         </TouchableOpacity>
       </View>
 
@@ -207,8 +209,8 @@ const HistoryScreen = ({ navigation }) => {
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name={activeTab === 'active' ? 'hourglass-outline' : 'receipt-outline'} size={64} color="#ccc" />
-            <Text style={styles.emptyText}>
+            <Ionicons name={activeTab === 'active' ? 'hourglass-outline' : 'receipt-outline'} size={64} color={colors.textLight} />
+            <Text style={[styles.emptyText, { color: colors.textLight }]}>
               {activeTab === 'active' 
                 ? t('orders.noActiveOrders') 
                 : t('orders.noOrderHistory')}
@@ -222,7 +224,7 @@ const HistoryScreen = ({ navigation }) => {
               setRefreshing(true); 
               fetchOrders(); 
             }} 
-            colors={['#FF5722']} 
+            colors={[colors.primary]} 
           />
         }
       />
@@ -231,26 +233,23 @@ const HistoryScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FBFBFB' },
+  container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { 
     paddingTop: 60, 
     paddingBottom: 20, 
     paddingHorizontal: 20, 
-    backgroundColor: '#fff', 
     borderBottomWidth: 1, 
-    borderBottomColor: '#f0f0f0',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center'
   },
-  headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#1A1A1A' },
+  headerTitle: { fontSize: 24, fontWeight: 'bold' },
   cartButton: { padding: 8, position: 'relative' },
   cartBadge: {
     position: 'absolute',
     right: 0,
     top: 0,
-    backgroundColor: '#FF5722',
     borderRadius: 10,
     width: 20,
     height: 20,
@@ -268,9 +267,7 @@ const styles = StyleSheet.create({
   // Tabs
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
     paddingHorizontal: 20,
   },
   tab: {
@@ -283,11 +280,6 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#999',
-  },
-  tabTextActive: {
-    color: '#FF5722',
-    fontWeight: '700',
   },
   tabIndicator: {
     position: 'absolute',
@@ -295,7 +287,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 3,
-    backgroundColor: '#FF5722',
     borderTopLeftRadius: 3,
     borderTopRightRadius: 3,
   },
@@ -309,12 +300,10 @@ const styles = StyleSheet.create({
   emptyText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#999',
     fontWeight: '500',
   },
   
   card: { 
-    backgroundColor: '#fff', 
     borderRadius: 16, 
     padding: 16, 
     marginBottom: 15, 
@@ -330,8 +319,8 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start', 
     marginBottom: 12 
   },
-  vendorName: { fontSize: 17, fontWeight: 'bold', color: '#333' },
-  orderId: { fontSize: 11, color: '#999', marginTop: 2 },
+  vendorName: { fontSize: 17, fontWeight: 'bold' },
+  orderId: { fontSize: 11, marginTop: 2 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
   statusText: { fontSize: 11, fontWeight: 'bold' },
   cardBody: { 
@@ -341,12 +330,11 @@ const styles = StyleSheet.create({
     marginBottom: 15 
   },
   infoRow: { flexDirection: 'row', alignItems: 'center' },
-  dateText: { color: '#999', fontSize: 13, marginLeft: 5 },
-  priceText: { fontSize: 18, fontWeight: 'bold', color: '#333' },
+  dateText: { fontSize: 13, marginLeft: 5 },
+  priceText: { fontSize: 18, fontWeight: 'bold' },
   
   actionsRow: { 
     borderTopWidth: 1, 
-    borderTopColor: '#f5f5f5', 
     paddingTop: 12 
   },
   reOrderBtn: { 
@@ -357,11 +345,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, 
     borderRadius: 8, 
     borderWidth: 1.5, 
-    borderColor: '#FF5722',
-    backgroundColor: '#fff'
+    backgroundColor: 'transparent'
   },
   reOrderText: { 
-    color: '#FF5722', 
     fontWeight: 'bold', 
     marginLeft: 6, 
     fontSize: 14 
@@ -369,12 +355,10 @@ const styles = StyleSheet.create({
   trackBtn: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    backgroundColor: '#FF5722', 
     alignSelf: 'flex-start', 
     paddingVertical: 10, 
     paddingHorizontal: 18, 
     borderRadius: 8,
-    shadowColor: '#FF5722',
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 3

@@ -16,6 +16,7 @@ import MapView, { Marker } from "react-native-maps";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useCart } from "../context/CartContext";
 import { useI18n } from "../context/I18nContext";
+import { useTheme } from "../context/ThemeContext";
 import api from "../utils/api";
 import { CATEGORIES, getCategoryIcon } from "../utils/categories";
 
@@ -24,6 +25,7 @@ const PLACEHOLDER_IMAGE = "https://via.placeholder.com/150";
 const HomeScreen = ({ navigation }) => {
   const { totalItems, showCart } = useCart();
   const { t } = useI18n();
+  const { colors } = useTheme();
   const [viewMode, setViewMode] = useState("MAP");
   const [vendors, setVendors] = useState([]);
   const [filteredVendors, setFilteredVendors] = useState([]);
@@ -43,15 +45,28 @@ const HomeScreen = ({ navigation }) => {
   const mapRef = useRef(null);
 
   useEffect(() => {
+    let isMounted = true;
+    
     const initialize = async () => {
-      await fetchVendors();
-      await startLiveTracking();
-      setLoading(false);
+      try {
+        await fetchVendors();
+        await startLiveTracking();
+        if (isMounted) {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error initializing:', error);
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
     };
+    
     initialize();
 
     // Cleanup subscription on component unmount
     return () => {
+      isMounted = false;
       if (locationSubscription) {
         locationSubscription.remove();
       }
@@ -155,7 +170,7 @@ const HomeScreen = ({ navigation }) => {
 
     return (
       <TouchableOpacity
-        style={[styles.listCard, isClosed && styles.listCardClosed]}
+        style={[styles.listCard, { backgroundColor: colors.card }, isClosed && styles.listCardClosed]}
         onPress={() => {
           if (!isClosed) {
             navigation.navigate("Menu", {
@@ -170,7 +185,7 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.cardImageContainer}>
           <Image
             source={{ uri: item.image_url }}
-            style={[styles.cardImage, isClosed && styles.cardImageClosed]}
+            style={[styles.cardImage, { backgroundColor: colors.surface }, isClosed && styles.cardImageClosed]}
             defaultSource={{ uri: PLACEHOLDER_IMAGE }}
           />
           {isClosed && (
@@ -181,7 +196,7 @@ const HomeScreen = ({ navigation }) => {
         </View>
         <View style={styles.cardContent}>
           <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, isClosed && styles.cardTitleClosed]}>
+            <Text style={[styles.cardTitle, { color: colors.text }, isClosed && { color: colors.textLight }]}>
               {item.name}
             </Text>
             {isClosed && (
@@ -194,15 +209,15 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.cardMetaRow}>
             <View style={styles.cardMetaItem}>
               <Ionicons name="star" size={14} color="#FFD700" />
-              <Text style={styles.cardMetaText}>
+              <Text style={[styles.cardMetaText, { color: colors.textSecondary }]}>
                 {item.rating > 0 ? item.rating.toFixed(1) : '0.0'}
               </Text>
               {item.rating_count > 0 && (
-                <Text style={styles.ratingCountText}>({item.rating_count})</Text>
+                <Text style={[styles.ratingCountText, { color: colors.textLight }]}>({item.rating_count})</Text>
               )}
             </View>
             
-            <View style={styles.cardMetaDivider} />
+            <View style={[styles.cardMetaDivider, { backgroundColor: colors.border }]} />
             
             <View style={styles.cardMetaItem}>
               <MaterialCommunityIcons 
@@ -210,13 +225,13 @@ const HomeScreen = ({ navigation }) => {
                 size={14} 
                 color={getCategoryIcon(item.category).color} 
               />
-              <Text style={styles.cardMetaText}>{item.category}</Text>
+              <Text style={[styles.cardMetaText, { color: colors.textSecondary }]}>{item.category}</Text>
             </View>
           </View>
 
           <View style={styles.cardHoursRow}>
-            <Ionicons name="time-outline" size={12} color="#999" />
-            <Text style={styles.cardHoursText}>{t('home.openingHours')}: {openingHours}</Text>
+            <Ionicons name="time-outline" size={12} color={colors.textLight} />
+            <Text style={[styles.cardHoursText, { color: colors.textLight }]}>{t('home.openingHours')}: {openingHours}</Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -227,7 +242,8 @@ const HomeScreen = ({ navigation }) => {
     <TouchableOpacity
       style={[
         styles.catChip,
-        selectedCategory === item.id && styles.catChipActive,
+        { backgroundColor: colors.card, borderColor: colors.border },
+        selectedCategory === item.id && { backgroundColor: colors.primary, borderColor: colors.primary },
       ]}
       onPress={() => setSelectedCategory(item.id)}
     >
@@ -239,6 +255,7 @@ const HomeScreen = ({ navigation }) => {
       <Text
         style={[
           styles.catText,
+          { color: colors.text },
           selectedCategory === item.id && styles.catTextActive,
         ]}
       >
@@ -248,22 +265,23 @@ const HomeScreen = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      <View style={styles.topContainer}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={["top", "left", "right"]}>
+      <View style={[styles.topContainer, { backgroundColor: colors.card }]}>
         <View style={styles.header}>
-          <View style={styles.searchBar}>
-            <Ionicons name="search" size={20} color="#666" />
+          <View style={[styles.searchBar, { backgroundColor: colors.surface }]}>
+            <Ionicons name="search" size={20} color={colors.textSecondary} />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, { color: colors.text }]}
               placeholder={t('home.searchPlaceholder')}
+              placeholderTextColor={colors.textLight}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
           </View>
           <TouchableOpacity style={styles.cartButton} onPress={showCart}>
-            <Ionicons name="cart-outline" size={28} color="#333" />
+            <Ionicons name="cart-outline" size={28} color={colors.text} />
             {totalItems > 0 && (
-              <View style={styles.cartBadge}>
+              <View style={[styles.cartBadge, { backgroundColor: colors.primary }]}>
                 <Text style={styles.cartBadgeText}>{totalItems}</Text>
               </View>
             )}
@@ -282,8 +300,8 @@ const HomeScreen = ({ navigation }) => {
       <View style={styles.contentContainer}>
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#FF5722" />
-            <Text style={{ marginTop: 10, color: "#666" }}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={{ marginTop: 10, color: colors.textSecondary }}>
               Loading Restaurants...
             </Text>
           </View>
@@ -327,31 +345,32 @@ const HomeScreen = ({ navigation }) => {
               ))}
             </MapView>
             
-            <TouchableOpacity style={styles.locateBtn} onPress={centerOnUser}>
-              <MaterialCommunityIcons name="crosshairs-gps" size={24} color="#333" />
+            <TouchableOpacity style={[styles.locateBtn, { backgroundColor: colors.card }]} onPress={centerOnUser}>
+              <MaterialCommunityIcons name="crosshairs-gps" size={24} color={colors.text} />
             </TouchableOpacity>
 
             {selectedVendor && (
-              <View style={styles.bottomCard}>
+              <View style={[styles.bottomCard, { backgroundColor: colors.card }]}>
                 <Image
                   source={{ uri: selectedVendor.image_url }}
                   style={[
                     styles.miniCardImage,
+                    { backgroundColor: colors.surface },
                     !selectedVendor.is_open && styles.miniCardImageClosed
                   ]}
                 />
                 <View style={styles.miniCardInfo}>
-                  <Text style={styles.miniCardTitle}>
+                  <Text style={[styles.miniCardTitle, { color: colors.text }]}>
                     {selectedVendor.name}
                   </Text>
                   <View style={styles.miniCardMeta}>
                     <View style={styles.miniCardRating}>
                       <Ionicons name="star" size={12} color="#FFD700" />
-                      <Text style={styles.miniCardSub}>
+                      <Text style={[styles.miniCardSub, { color: colors.textSecondary }]}>
                         {selectedVendor.rating > 0 ? selectedVendor.rating.toFixed(1) : '0.0'}
                       </Text>
                       {selectedVendor.rating_count > 0 && (
-                        <Text style={styles.miniCardRatingCount}>
+                        <Text style={[styles.miniCardRatingCount, { color: colors.textLight }]}>
                           ({selectedVendor.rating_count})
                         </Text>
                       )}
@@ -362,16 +381,17 @@ const HomeScreen = ({ navigation }) => {
                         size={12} 
                         color={getCategoryIcon(selectedVendor.category).color} 
                       />
-                      <Text style={styles.miniCardSub}>{selectedVendor.category}</Text>
+                      <Text style={[styles.miniCardSub, { color: colors.textSecondary }]}>{selectedVendor.category}</Text>
                     </View>
                   </View>
                   {!selectedVendor.is_open && (
-                    <Text style={styles.miniCardHours}>06:00 - 02:00</Text>
+                    <Text style={[styles.miniCardHours, { color: colors.textLight }]}>06:00 - 02:00</Text>
                   )}
                 </View>
                 <TouchableOpacity
                   style={[
                     styles.miniCardBtn,
+                    { backgroundColor: selectedVendor.is_open ? colors.primary : colors.textLight },
                     !selectedVendor.is_open && styles.miniCardBtnClosed
                   ]}
                   onPress={() => {
@@ -402,15 +422,15 @@ const HomeScreen = ({ navigation }) => {
       </View>
 
       <TouchableOpacity
-        style={styles.toggleBtn}
+        style={[styles.toggleBtn, { backgroundColor: colors.surface }]}
         onPress={() => setViewMode(viewMode === "MAP" ? "LIST" : "MAP")}
       >
         <Ionicons
           name={viewMode === "MAP" ? "list" : "map"}
           size={24}
-          color="#fff"
+          color={colors.text}
         />
-        <Text style={styles.toggleText}>
+        <Text style={[styles.toggleText, { color: colors.text }]}>
           {viewMode === "MAP" ? t('home.listView') : t('home.mapView')}
         </Text>
       </TouchableOpacity>
@@ -419,11 +439,10 @@ const HomeScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1 },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   topContainer: {
     paddingBottom: 10,
-    backgroundColor: "#fff",
     zIndex: 10,
     shadowColor: "#000",
     shadowOpacity: 0.05,
@@ -437,7 +456,6 @@ const styles = StyleSheet.create({
   searchBar: {
     flex: 1,
     flexDirection: "row",
-    backgroundColor: "#e7e4e4",
     padding: 12,
     borderRadius: 12,
     alignItems: "center",
@@ -451,7 +469,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
     top: 0,
-    backgroundColor: '#FF5722',
     borderRadius: 10,
     width: 20,
     height: 20,
@@ -472,13 +489,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 25,
-    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: "#eee",
     marginRight: 10,
   },
-  catChipActive: { backgroundColor: "#FF5722", borderColor: "#FF5722" },
-  catText: { marginLeft: 5, fontWeight: "600", color: "#333" },
+  catText: { marginLeft: 5, fontWeight: "600" },
   catTextActive: { color: "#fff" },
   contentContainer: { flex: 1 },
   map: { width: "100%", height: "100%" },
@@ -486,7 +500,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 20,
     right: 20,
-    backgroundColor: '#fff',
     borderRadius: 50,
     padding: 12,
     shadowColor: "#000",
@@ -507,7 +520,6 @@ const styles = StyleSheet.create({
     bottom: 100,
     left: 20,
     right: 20,
-    backgroundColor: "#fff",
     borderRadius: 15,
     padding: 15,
     flexDirection: "row",
@@ -520,7 +532,6 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 10,
-    backgroundColor: "#eee",
   },
   miniCardImageClosed: {
     opacity: 0.5,
@@ -538,9 +549,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 2,
   },
-  miniCardSub: { color: "#666", fontSize: 12 },
+  miniCardSub: { fontSize: 12 },
   miniCardRatingCount: {
-    color: "#999",
     fontSize: 11,
   },
   miniCardCategory: {
@@ -549,24 +559,20 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   miniCardHours: {
-    color: "#999",
     fontSize: 11,
     marginTop: 2,
   },
   miniCardBtn: {
-    backgroundColor: "#FF5722",
     paddingHorizontal: 15,
     paddingVertical: 8,
     borderRadius: 8,
   },
   miniCardBtnClosed: {
-    backgroundColor: "#999",
     opacity: 0.7,
   },
   miniCardBtnText: { color: "#fff", fontWeight: "bold", fontSize: 12 },
   listContainer: { padding: 20, paddingBottom: 100 },
   listCard: {
-    backgroundColor: "#fff",
     marginBottom: 20,
     borderRadius: 15,
     overflow: "hidden",
@@ -580,7 +586,7 @@ const styles = StyleSheet.create({
   cardImageContainer: {
     position: 'relative',
   },
-  cardImage: { width: "100%", height: 180, backgroundColor: "#eee" },
+  cardImage: { width: "100%", height: 180 },
   cardImageClosed: {
     opacity: 0.4,
   },
@@ -608,9 +614,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   cardTitle: { fontSize: 18, fontWeight: "bold", flex: 1 },
-  cardTitleClosed: {
-    color: '#999',
-  },
   closedBadge: {
     backgroundColor: '#F44336',
     paddingHorizontal: 8,
@@ -633,18 +636,15 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   cardMetaText: {
-    color: "#666",
     fontSize: 13,
     fontWeight: '500',
   },
   ratingCountText: {
-    color: "#999",
     fontSize: 12,
   },
   cardMetaDivider: {
     width: 1,
     height: 14,
-    backgroundColor: '#ddd',
     marginHorizontal: 10,
   },
   cardHoursRow: {
@@ -654,7 +654,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   cardHoursText: {
-    color: "#999",
     fontSize: 12,
     fontWeight: '500',
   },
@@ -662,7 +661,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 20,
     alignSelf: "center",
-    backgroundColor: "#333",
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
@@ -672,7 +670,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     elevation: 6,
   },
-  toggleText: { color: "#fff", fontWeight: "bold", marginLeft: 8 },
+  toggleText: { fontWeight: "bold", marginLeft: 8 },
 });
 
 export default HomeScreen;

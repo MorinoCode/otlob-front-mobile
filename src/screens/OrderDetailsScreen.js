@@ -16,10 +16,13 @@ import { Audio } from 'expo-av';
 import * as Location from 'expo-location';
 import api from '../utils/api';
 import socket from '../utils/socket';
+import { useI18n } from '../context/I18nContext';
+import { useTheme } from '../context/ThemeContext';
 
 const OrderDetailsScreen = ({ route, navigation }) => {
   const { t } = useI18n();
-  const { orderId } = route.params;
+  const { colors, isDark } = useTheme();
+  const orderId = route?.params?.orderId;
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userRating, setUserRating] = useState(0);
@@ -28,42 +31,57 @@ const OrderDetailsScreen = ({ route, navigation }) => {
   const soundRef = useRef(null);
 
   useEffect(() => {
+    if (!orderId) {
+      console.error('Order ID is missing');
+      setLoading(false);
+      return;
+    }
+    
     fetchOrderDetails();
+
+    // ۲. گوش دادن به تغییرات وضعیت از سمت سرور
+    const handleStatusUpdate = (data) => {
+      console.log('⚡ Real-time update received:', data);
+      if (data && data.orderId === orderId) {
+        setOrder(prevOrder => {
+          if (!prevOrder) return prevOrder;
+          return {
+            ...prevOrder,
+            status: data.status
+          };
+        });
+      }
+    };
 
     // Check socket connection
     console.log('🔌 Socket connected:', socket.connected);
+    const handleConnect = () => {
+      console.log('✅ Socket connected!');
+      socket.emit('join_order', orderId);
+    };
+    
     if (!socket.connected) {
       console.log('⚠️ Socket not connected, waiting for connection...');
-      socket.on('connect', () => {
-        console.log('✅ Socket connected!');
-        socket.emit('join_order', orderId);
-      });
+      socket.on('connect', handleConnect);
     } else {
       // ۱. اتصال به اتاق مخصوص این سفارش در سوکت
       socket.emit('join_order', orderId);
     }
-
-    // ۲. گوش دادن به تغییرات وضعیت از سمت سرور
-    socket.on('order_status_updated', (data) => {
-      console.log('⚡ Real-time update received:', data);
-      if (data.orderId === orderId) {
-        setOrder(prevOrder => ({
-          ...prevOrder,
-          status: data.status
-        }));
-      }
-    });
+    
+    socket.on('order_status_updated', handleStatusUpdate);
 
     // ۳. پولینگ به عنوان پشتیبان (هر ۱۰ ثانیه)
-    const interval = setInterval(fetchOrderDetails, 10000);
+    const interval = setInterval(() => {
+      fetchOrderDetails();
+    }, 10000);
 
     // Load sound file
     loadSound();
 
     return () => {
-      socket.off('order_status_updated');
-      socket.off('connect');
-      clearInterval(interval);
+      socket.off('order_status_updated', handleStatusUpdate);
+      socket.off('connect', handleConnect);
+      if (interval) clearInterval(interval);
       unloadSound();
     };
   }, [orderId]);
@@ -109,21 +127,29 @@ const OrderDetailsScreen = ({ route, navigation }) => {
   };
 
   const fetchOrderDetails = async () => {
+    if (!orderId) {
+      console.error('Cannot fetch order details: orderId is missing');
+      setLoading(false);
+      return;
+    }
+    
     try {
       const response = await api.get(`/orders/${orderId}`);
-      setOrder(response.data);
-      // Debug: Log order data to check vendor_phone
-      console.log('📞 Order Details:', {
-        id: response.data.id,
-        vendor_id: response.data.vendor_id,
-        vendor_name: response.data.vendor_name,
-        vendor_phone: response.data.vendor_phone,
-        vendor_address: response.data.vendor_address,
-        status: response.data.status,
-      });
-      // اگر قبلاً امتیاز ثبت شده باشد، آن را نمایش می‌دهیم
-      if (response.data.rating) {
-        setUserRating(response.data.rating);
+      if (response && response.data) {
+        setOrder(response.data);
+        // Debug: Log order data to check vendor_phone
+        console.log('📞 Order Details:', {
+          id: response.data.id,
+          vendor_id: response.data.vendor_id,
+          vendor_name: response.data.vendor_name,
+          vendor_phone: response.data.vendor_phone,
+          vendor_address: response.data.vendor_address,
+          status: response.data.status,
+        });
+        // اگر قبلاً امتیاز ثبت شده باشد، آن را نمایش می‌دهیم
+        if (response.data.rating) {
+          setUserRating(response.data.rating);
+        }
       }
       setLoading(false);
     } catch (error) {
@@ -287,17 +313,17 @@ const OrderDetailsScreen = ({ route, navigation }) => {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#FF5722" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   if (!order) {
     return (
-      <View style={styles.center}>
-        <Text>Order not found.</Text>
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <Text style={{ color: colors.text }}>Order not found.</Text>
         <TouchableOpacity onPress={() => navigation.goBack()} style={{marginTop: 20}}>
-          <Text style={{color: '#FF5722'}}>Back to Home</Text>
+          <Text style={{color: colors.primary}}>Back to Home</Text>
         </TouchableOpacity>
       </View>
     );
@@ -306,18 +332,18 @@ const OrderDetailsScreen = ({ route, navigation }) => {
   const currentStep = getStatusStep(order.status);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="close" size={28} color="#333" />
+          <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('orders.orderDetails')}</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('orders.orderDetails')}</Text>
         {order.vendor_latitude && order.vendor_longitude ? (
           <TouchableOpacity 
             onPress={navigateToRestaurant}
             style={styles.navigateButton}
           >
-            <Ionicons name="navigate" size={24} color="#FF5722" />
+            <Ionicons name="navigate" size={24} color={colors.primary} />
           </TouchableOpacity>
         ) : (
           <View style={{ width: 28 }} />
@@ -328,29 +354,29 @@ const OrderDetailsScreen = ({ route, navigation }) => {
         
         {/* Rating Section - Only shows if order is COMPLETED */}
         {order.status === 'COMPLETED' && (
-          <View style={styles.ratingCard}>
-            <Text style={styles.ratingTitle}>Rate your experience</Text>
+          <View style={[styles.ratingCard, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.ratingTitle, { color: isDark ? '#fff' : colors.text }]}>Rate your experience</Text>
             <View style={styles.starsRow}>
               {[1, 2, 3, 4, 5].map((s) => (
                 <TouchableOpacity key={s} onPress={() => handleRate(s)}>
                   <Ionicons 
                     name={s <= userRating ? "star" : "star-outline"} 
                     size={35} 
-                    color={s <= userRating ? "#FFD700" : "#ccc"} 
+                    color={s <= userRating ? "#FFD700" : colors.textLight} 
                     style={{ marginHorizontal: 5 }}
                   />
                 </TouchableOpacity>
               ))}
             </View>
-            <Text style={styles.ratingHint}>
+            <Text style={[styles.ratingHint, { color: colors.textSecondary }]}>
               {userRating > 0 ? "Thanks for your feedback!" : "How was the food and service?"}
             </Text>
           </View>
         )}
 
         {/* Real-time Timeline */}
-        <View style={styles.statusCard}>
-          <Text style={styles.sectionTitle}>Order Progress</Text>
+        <View style={[styles.statusCard, { backgroundColor: colors.card }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Order Progress</Text>
           <View style={styles.timeline}>
             {[
               { label: 'Order Placed', icon: 'clipboard-check', status: 'PENDING' },
@@ -362,28 +388,28 @@ const OrderDetailsScreen = ({ route, navigation }) => {
                 <View style={styles.iconColumn}>
                   <View style={[
                     styles.iconCircle, 
-                    index <= currentStep ? styles.activeCircle : styles.inactiveCircle
+                    index <= currentStep ? { backgroundColor: colors.primary } : { backgroundColor: colors.surface, borderColor: colors.border }
                   ]}>
                     <FontAwesome5 
                       name={step.icon} 
                       size={14} 
-                      color={index <= currentStep ? '#fff' : '#ccc'} 
+                      color={index <= currentStep ? '#fff' : colors.textLight} 
                     />
                   </View>
                   {index < 3 && <View style={[
                     styles.line, 
-                    index < currentStep ? styles.activeLine : styles.inactiveLine
+                    { backgroundColor: index < currentStep ? colors.primary : colors.border }
                   ]} />}
                 </View>
                 <View style={styles.textColumn}>
                   <Text style={[
                     styles.statusLabel, 
-                    index <= currentStep ? styles.activeText : styles.inactiveText
+                    { color: index <= currentStep ? colors.text : colors.textLight }
                   ]}>
                     {step.label}
                   </Text>
                   {index === currentStep && (
-                    <Text style={styles.currentStepBadge}>Processing Now</Text>
+                    <Text style={[styles.currentStepBadge, { color: colors.primary }]}>Processing Now</Text>
                   )}
                 </View>
               </View>
@@ -394,18 +420,18 @@ const OrderDetailsScreen = ({ route, navigation }) => {
         {/* Info & Notes */}
         <View style={styles.infoSection}>
           <View style={styles.detailsRow}>
-            <View style={styles.detailBox}>
-              <Ionicons name="car-sport" size={24} color="#FF5722" />
-              <Text style={styles.detailLabel}>My Vehicle</Text>
-              <Text style={styles.detailValue}>{order.car_model}</Text>
-              <Text style={styles.detailSubValue}>{order.car_plate}</Text>
+            <View style={[styles.detailBox, { backgroundColor: colors.surface }]}>
+              <Ionicons name="car-sport" size={24} color={colors.primary} />
+              <Text style={[styles.detailLabel, { color: colors.textLight }]}>My Vehicle</Text>
+              <Text style={[styles.detailValue, { color: colors.text }]}>{order.car_model}</Text>
+              <Text style={[styles.detailSubValue, { color: colors.primary }]}>{order.car_plate}</Text>
             </View>
-            <View style={styles.detailBox}>
-              <MaterialCommunityIcons name="storefront" size={24} color="#FF5722" />
-              <Text style={styles.detailLabel}>From</Text>
-              <Text style={styles.detailValue} numberOfLines={1}>{order.vendor_name}</Text>
+            <View style={[styles.detailBox, { backgroundColor: colors.surface }]}>
+              <MaterialCommunityIcons name="storefront" size={24} color={colors.primary} />
+              <Text style={[styles.detailLabel, { color: colors.textLight }]}>From</Text>
+              <Text style={[styles.detailValue, { color: colors.text }]} numberOfLines={1}>{order.vendor_name}</Text>
               {order.vendor_address && (
-                <Text style={styles.addressText} numberOfLines={2}>{order.vendor_address}</Text>
+                <Text style={[styles.addressText, { color: colors.textSecondary }]} numberOfLines={2}>{order.vendor_address}</Text>
               )}
               <TouchableOpacity 
                 onPress={() => {
@@ -417,6 +443,7 @@ const OrderDetailsScreen = ({ route, navigation }) => {
                 }}
                 style={[
                   styles.callRestaurantLink,
+                  { backgroundColor: order.vendor_phone ? '#E3F2FD' : colors.surface },
                   !order.vendor_phone && styles.callRestaurantLinkDisabled
                 ]}
                 disabled={!order.vendor_phone}
@@ -424,11 +451,11 @@ const OrderDetailsScreen = ({ route, navigation }) => {
                 <Ionicons 
                   name="call-outline" 
                   size={14} 
-                  color={order.vendor_phone ? "#2196F3" : "#999"} 
+                  color={order.vendor_phone ? "#2196F3" : colors.textLight} 
                 />
                 <Text style={[
                   styles.callRestaurantText,
-                  !order.vendor_phone && styles.callRestaurantTextDisabled
+                  { color: order.vendor_phone ? "#2196F3" : colors.textLight }
                 ]}>
                   {order.vendor_phone ? t('orders.callRestaurant') : 'Phone Not Available'}
                 </Text>
@@ -436,11 +463,11 @@ const OrderDetailsScreen = ({ route, navigation }) => {
             </View>
           </View>
 
-          <View style={styles.noteSection}>
-            <Text style={styles.noteTitle}>Your Pickup Instructions</Text>
+          <View style={[styles.noteSection, { backgroundColor: colors.surface, borderLeftColor: colors.primary }]}>
+            <Text style={[styles.noteTitle, { color: colors.primary }]}>Your Pickup Instructions</Text>
             <View style={styles.noteContent}>
-              <MaterialCommunityIcons name="comment-text-outline" size={20} color="#666" />
-              <Text style={styles.noteText}>
+              <MaterialCommunityIcons name="comment-text-outline" size={20} color={colors.textSecondary} />
+              <Text style={[styles.noteText, { color: colors.text }]}>
                 {order.customer_note || "No specific note provided."}
               </Text>
             </View>
@@ -510,7 +537,7 @@ const OrderDetailsScreen = ({ route, navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   header: {
     flexDirection: 'row',
@@ -519,9 +546,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderColor: '#f0f0f0'
   },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },
+  headerTitle: { fontSize: 18, fontWeight: 'bold' },
   navigateButton: {
     padding: 4,
   },
@@ -529,7 +555,6 @@ const styles = StyleSheet.create({
   
   // Rating Style
   ratingCard: {
-    backgroundColor: '#FFF9C4',
     borderRadius: 20,
     padding: 20,
     alignItems: 'center',
@@ -539,12 +564,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 5,
   },
-  ratingTitle: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 10 },
+  ratingTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 10 },
   starsRow: { flexDirection: 'row', marginBottom: 10 },
-  ratingHint: { fontSize: 12, color: '#777' },
+  ratingHint: { fontSize: 12 },
 
   statusCard: {
-    backgroundColor: '#fff',
     borderRadius: 20,
     padding: 20,
     shadowColor: '#000',
@@ -553,7 +577,7 @@ const styles = StyleSheet.create({
     elevation: 4,
     marginBottom: 20
   },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#444', marginBottom: 20 },
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 20 },
   timeline: { paddingLeft: 5 },
   timelineItem: { flexDirection: 'row', minHeight: 60 },
   iconColumn: { alignItems: 'center', marginRight: 15 },
@@ -563,25 +587,20 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 2
+    zIndex: 2,
+    borderWidth: 1,
   },
-  activeCircle: { backgroundColor: '#FF5722' },
-  inactiveCircle: { backgroundColor: '#F5F5F5', borderWidth: 1, borderColor: '#eee' },
   line: { width: 2, flex: 1, marginVertical: -4, zIndex: 1 },
-  activeLine: { backgroundColor: '#FF5722' },
-  inactiveLine: { backgroundColor: '#eee' },
   textColumn: { paddingTop: 2 },
   statusLabel: { fontSize: 15, fontWeight: '600' },
-  activeText: { color: '#333' },
-  inactiveText: { color: '#bbb' },
-  currentStepBadge: { color: '#FF5722', fontSize: 11, fontWeight: '700', marginTop: 1 },
+  currentStepBadge: { fontSize: 11, fontWeight: '700', marginTop: 1 },
   infoSection: { marginTop: 5 },
   detailsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
-  detailBox: { backgroundColor: '#F9F9F9', width: '48%', padding: 12, borderRadius: 12, alignItems: 'center' },
-  detailLabel: { color: '#999', fontSize: 11, marginTop: 4 },
-  detailValue: { fontWeight: 'bold', color: '#333', fontSize: 13, marginTop: 2 },
-  detailSubValue: { color: '#FF5722', fontSize: 10, fontWeight: 'bold' },
-  addressText: { color: '#666', fontSize: 11, marginTop: 4, textAlign: 'center' },
+  detailBox: { width: '48%', padding: 12, borderRadius: 12, alignItems: 'center' },
+  detailLabel: { fontSize: 11, marginTop: 4 },
+  detailValue: { fontWeight: 'bold', fontSize: 13, marginTop: 2 },
+  detailSubValue: { fontSize: 10, fontWeight: 'bold' },
+  addressText: { fontSize: 11, marginTop: 4, textAlign: 'center' },
   callRestaurantLink: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -590,25 +609,19 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 8,
     borderRadius: 6,
-    backgroundColor: '#E3F2FD',
   },
   callRestaurantText: {
-    color: '#2196F3',
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 4,
   },
   callRestaurantLinkDisabled: {
-    backgroundColor: '#F5F5F5',
     opacity: 0.6,
   },
-  callRestaurantTextDisabled: {
-    color: '#999',
-  },
-  noteSection: { backgroundColor: '#FFF8F1', padding: 12, borderRadius: 12, borderLeftWidth: 4, borderLeftColor: '#FF5722' },
-  noteTitle: { fontSize: 12, fontWeight: 'bold', color: '#FF5722', marginBottom: 4 },
+  noteSection: { padding: 12, borderRadius: 12, borderLeftWidth: 4 },
+  noteTitle: { fontSize: 12, fontWeight: 'bold', marginBottom: 4 },
   noteContent: { flexDirection: 'row', alignItems: 'center' },
-  noteText: { flex: 1, marginLeft: 8, fontSize: 13, color: '#555', lineHeight: 18 },
+  noteText: { flex: 1, marginLeft: 8, fontSize: 13, lineHeight: 18 },
   arrivedBtn: {
     backgroundColor: '#FF5722',
     borderRadius: 24,

@@ -89,6 +89,9 @@ const translations = {
       selectLanguage: 'Select Language',
       english: 'English',
       arabic: 'Arabic',
+      darkMode: 'Dark Mode',
+      lightMode: 'Light Mode',
+      support: 'Support',
     },
     // Cart
     cart: {
@@ -281,6 +284,9 @@ const translations = {
       selectLanguage: 'اختر اللغة',
       english: 'الإنجليزية',
       arabic: 'العربية',
+      darkMode: 'الوضع الداكن',
+      lightMode: 'الوضع الفاتح',
+      support: 'الدعم',
     },
     // Cart
     cart: {

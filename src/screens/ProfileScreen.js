@@ -2,21 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
-  FlatList, 
+  ScrollView, 
   TouchableOpacity, 
   StyleSheet, 
   ActivityIndicator, 
-  Alert, 
-  ScrollView,
-  SafeAreaView,
-  Dimensions
+  Alert,
+  Dimensions,
+  Switch
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { useIsFocused } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import api from '../utils/api';
 import { useCart } from '../context/CartContext';
 import { useI18n } from '../context/I18nContext';
+import { useTheme } from '../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -26,6 +27,7 @@ const ProfileScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const { totalItems, showCart } = useCart();
   const { t, language, changeLanguage } = useI18n();
+  const { theme, isDark, colors, changeTheme } = useTheme();
   
   const isFocused = useIsFocused();
 
@@ -77,7 +79,9 @@ const ProfileScreen = ({ navigation }) => {
     const newLanguage = language === 'en' ? 'ar' : 'en';
     Alert.alert(
       t('profile.selectLanguage'),
-      t('profile.selectLanguage') + '?\n' + (newLanguage === 'ar' ? 'تغيير اللغة إلى العربية' : 'Change language to English'),
+      language === 'en' 
+        ? 'تغيير اللغة إلى العربية؟' 
+        : 'Change language to English?',
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
@@ -87,8 +91,8 @@ const ProfileScreen = ({ navigation }) => {
             Alert.alert(
               t('common.done'),
               newLanguage === 'ar' 
-                ? 'تم تغيير اللغة. قد تحتاج إلى إعادة تشغيل التطبيق لإكمال التغيير.'
-                : 'Language changed. You may need to restart the app to complete the change.',
+                ? 'تم تغيير اللغة. قد تحتاج إلى إعادة تشغيل التطبيق.'
+                : 'Language changed. You may need to restart the app.',
               [{ text: t('common.close') }]
             );
           }
@@ -97,39 +101,14 @@ const ProfileScreen = ({ navigation }) => {
     );
   };
 
-  const renderCarItem = ({ item, index }) => (
-    <TouchableOpacity 
-      style={styles.carCard}
-      onPress={() => navigation.navigate('MyCars')}
-    >
-      <View style={styles.carCardLeft}>
-        <View style={[styles.carIconContainer, { backgroundColor: '#FFF3E0' }]}>
-          <MaterialCommunityIcons name="car-sport" size={28} color="#FF5722" />
-        </View>
-        <View style={styles.carInfo}>
-          <Text style={styles.carModel}>{item.model || 'Unknown Model'}</Text>
-          <View style={styles.carDetailsRow}>
-            <Text style={styles.carColor}>{item.color || 'N/A'}</Text>
-            <Text style={styles.carDivider}>•</Text>
-            <Text style={styles.carPlate}>{item.plate_number || 'N/A'}</Text>
-          </View>
-        </View>
-      </View>
-      {item.is_default && (
-        <View style={styles.defaultBadge}>
-          <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-          <Text style={styles.defaultBadgeText}>{t('profile.default')}</Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
-
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#FF5722" />
-          <Text style={styles.loadingText}>{t('profile.loadingProfile')}</Text>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            {t('profile.loadingProfile')}
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -137,672 +116,361 @@ const ProfileScreen = ({ navigation }) => {
 
   const defaultCar = cars.find(c => c.is_default) || cars[0];
 
+  const menuSections = [
+    {
+      title: t('profile.quickActions'),
+      items: [
+        {
+          id: 'cart',
+          icon: 'cart-outline',
+          label: t('profile.cart'),
+          badge: totalItems > 0 ? totalItems : null,
+          onPress: () => {
+            if (totalItems > 0) {
+              showCart();
+            }
+          }
+        },
+        {
+          id: 'orders',
+          icon: 'receipt-outline',
+          label: t('profile.orders'),
+          onPress: () => navigation.navigate('Orders')
+        },
+        {
+          id: 'cars',
+          icon: 'car-outline',
+          label: t('profile.cars'),
+          badge: cars.length > 0 ? cars.length : null,
+          onPress: () => navigation.navigate('MyCars')
+        }
+      ]
+    },
+    {
+      title: t('profile.settings'),
+      items: [
+        {
+          id: 'language',
+          icon: 'language-outline',
+          label: t('profile.language'),
+          rightText: language === 'en' ? 'English' : 'العربية',
+          onPress: handleLanguageChange
+        },
+        {
+          id: 'theme',
+          icon: isDark ? 'sunny-outline' : 'moon-outline',
+          label: isDark ? t('profile.lightMode') : t('profile.darkMode'),
+          rightComponent: (
+            <Switch
+              value={isDark}
+              onValueChange={(value) => changeTheme(value ? 'dark' : 'light')}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={isDark ? '#fff' : '#f4f3f4'}
+            />
+          )
+        }
+      ]
+    },
+    {
+      title: t('profile.support'),
+      items: [
+        {
+          id: 'help',
+          icon: 'help-circle-outline',
+          label: t('profile.helpSupport'),
+          onPress: () => Alert.alert(t('profile.helpSupport'), 'Contact support: support@otlob.com')
+        },
+        {
+          id: 'about',
+          icon: 'information-circle-outline',
+          label: t('profile.about'),
+          onPress: () => Alert.alert(t('profile.about'), 'Otlob App v1.0.0\nFood delivery to your car')
+        }
+      ]
+    }
+  ];
+
+  const renderMenuItem = (item) => (
+    <TouchableOpacity
+      key={item.id}
+      style={[
+        styles.menuItem,
+        { 
+          backgroundColor: colors.card,
+          borderBottomColor: colors.border 
+        }
+      ]}
+      onPress={item.onPress}
+      activeOpacity={0.7}
+    >
+      <View style={styles.menuItemLeft}>
+        <View style={[styles.menuIcon, { backgroundColor: colors.surface }]}>
+          <Ionicons name={item.icon} size={22} color={colors.primary} />
+        </View>
+        <Text style={[styles.menuItemLabel, { color: colors.text }]}>
+          {item.label}
+        </Text>
+        {item.badge && (
+          <View style={[styles.badge, { backgroundColor: colors.primary }]}>
+            <Text style={styles.badgeText}>{item.badge}</Text>
+          </View>
+        )}
+      </View>
+      {item.rightText ? (
+        <Text style={[styles.menuItemRight, { color: colors.textSecondary }]}>
+          {item.rightText}
+        </Text>
+      ) : item.rightComponent ? (
+        item.rightComponent
+      ) : (
+        <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
+      )}
+    </TouchableOpacity>
+  );
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView 
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Header Section */}
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View style={styles.avatarContainer}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {user?.full_name?.charAt(0)?.toUpperCase() || 'U'}
+        {/* Profile Header */}
+        <View style={[styles.header, { backgroundColor: colors.card }]}>
+          <View style={styles.avatarSection}>
+            <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+              <Text style={styles.avatarText}>
+                {user?.full_name?.charAt(0)?.toUpperCase() || 'U'}
+              </Text>
+            </View>
+            <View style={styles.userInfo}>
+              <Text style={[styles.userName, { color: colors.text }]}>
+                {user?.full_name || 'User'}
+              </Text>
+              <Text style={[styles.userPhone, { color: colors.textSecondary }]}>
+                {user?.phone_number || ''}
+              </Text>
+            </View>
+          </View>
+
+          {/* Default Car Info */}
+          {defaultCar && (
+            <View style={[styles.carInfo, { backgroundColor: colors.surface }]}>
+              <MaterialCommunityIcons name="car" size={20} color={colors.primary} />
+              <View style={styles.carInfoText}>
+                <Text style={[styles.carModel, { color: colors.text }]}>
+                  {defaultCar.model}
+                </Text>
+                <Text style={[styles.carDetails, { color: colors.textSecondary }]}>
+                  {defaultCar.color} • {defaultCar.plate_number}
                 </Text>
               </View>
-              <View style={styles.verifiedBadge}>
-                <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-              </View>
-            </View>
-            <Text style={styles.name}>{user?.full_name || 'User'}</Text>
-            <Text style={styles.phone}>
-              <Ionicons name="call-outline" size={14} color="#999" /> {user?.phone_number || t('common.loading')}
-            </Text>
-          </View>
-        </View>
-
-        {/* Quick Actions */}
-        <View style={styles.quickActions}>
-          <TouchableOpacity 
-            style={styles.actionCard}
-            onPress={showCart}
-          >
-            <View style={[styles.actionIcon, { backgroundColor: '#FFF3E0' }]}>
-              <Ionicons name="cart" size={24} color="#FF5722" />
-              {totalItems > 0 && (
-                <View style={styles.actionBadge}>
-                  <Text style={styles.actionBadgeText}>{totalItems}</Text>
+              {defaultCar.is_default && (
+                <View style={[styles.defaultBadge, { backgroundColor: colors.success }]}>
+                  <Text style={styles.defaultBadgeText}>{t('profile.active')}</Text>
                 </View>
               )}
             </View>
-            <Text style={styles.actionLabel}>{t('profile.cart')}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.actionCard}
-            onPress={() => navigation.navigate('History')}
-          >
-            <View style={[styles.actionIcon, { backgroundColor: '#E3F2FD' }]}>
-              <Ionicons name="receipt" size={24} color="#2196F3" />
-            </View>
-            <Text style={styles.actionLabel}>{t('profile.orders')}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.actionCard}
-            onPress={() => navigation.navigate('MyCars')}
-          >
-            <View style={[styles.actionIcon, { backgroundColor: '#E8F5E9' }]}>
-              <MaterialCommunityIcons name="car-multiple" size={24} color="#4CAF50" />
-            </View>
-            <Text style={styles.actionLabel}>{t('profile.cars')}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.actionCard}
-            onPress={handleLanguageChange}
-          >
-            <View style={[styles.actionIcon, { backgroundColor: '#F3E5F5' }]}>
-              <Ionicons name="language" size={24} color="#9C27B0" />
-            </View>
-            <Text style={styles.actionLabel}>{t('profile.language')}</Text>
-          </TouchableOpacity>
+          )}
         </View>
 
-        {/* Default Car Section */}
-        {defaultCar ? (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionHeaderLeft}>
-                <MaterialCommunityIcons name="car" size={20} color="#FF5722" />
-                <Text style={styles.sectionTitle}>{t('profile.defaultVehicle')}</Text>
-              </View>
-              <TouchableOpacity 
-                onPress={() => navigation.navigate('MyCars')}
-                style={styles.manageButton}
-              >
-                <Text style={styles.manageButtonText}>{t('profile.manage')}</Text>
-                <Ionicons name="chevron-forward" size={16} color="#FF5722" />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.defaultCarCard}>
-              <View style={styles.defaultCarLeft}>
-                <View style={styles.defaultCarIcon}>
-                  <MaterialCommunityIcons name="car-sport" size={32} color="#FF5722" />
-                </View>
-                <View style={styles.defaultCarInfo}>
-                  <Text style={styles.defaultCarModel}>{defaultCar.model}</Text>
-                  <Text style={styles.defaultCarDetails}>
-                    {defaultCar.color} • {defaultCar.plate_number}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.defaultBadgeLarge}>
-                <Ionicons name="checkmark-circle" size={18} color="#4CAF50" />
-                <Text style={styles.defaultBadgeTextLarge}>{t('profile.active')}</Text>
-              </View>
+        {/* Menu Sections */}
+        {menuSections.map((section, sectionIndex) => (
+          <View key={sectionIndex} style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+              {section.title}
+            </Text>
+            <View style={[styles.menuContainer, { backgroundColor: colors.card }]}>
+              {section.items.map(renderMenuItem)}
             </View>
           </View>
-        ) : (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionHeaderLeft}>
-                <MaterialCommunityIcons name="car" size={20} color="#FF5722" />
-                <Text style={styles.sectionTitle}>{t('profile.myGarage')}</Text>
-              </View>
-              <TouchableOpacity 
-                onPress={() => navigation.navigate('MyCars')}
-                style={styles.manageButton}
-              >
-                <Text style={styles.manageButtonText}>{t('profile.addCar')}</Text>
-                <Ionicons name="chevron-forward" size={16} color="#FF5722" />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.emptyCarCard}>
-              <MaterialCommunityIcons name="car-off" size={48} color="#ccc" />
-              <Text style={styles.emptyCarText}>{t('profile.noVehicles')}</Text>
-              <Text style={styles.emptyCarSubText}>{t('profile.addVehiclePrompt')}</Text>
-              <TouchableOpacity 
-                style={styles.addCarButton}
-                onPress={() => navigation.navigate('MyCars')}
-              >
-                <Ionicons name="add-circle" size={20} color="#fff" />
-                <Text style={styles.addCarButtonText}>{t('profile.addVehicle')}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* All Cars Preview */}
-        {cars.length > 1 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionHeaderLeft}>
-                <MaterialCommunityIcons name="garage" size={20} color="#FF5722" />
-                <Text style={styles.sectionTitle}>{t('profile.allVehicles')} ({cars.length})</Text>
-              </View>
-              <TouchableOpacity 
-                onPress={() => navigation.navigate('MyCars')}
-                style={styles.manageButton}
-              >
-                <Text style={styles.manageButtonText}>{t('profile.viewAll')}</Text>
-                <Ionicons name="chevron-forward" size={16} color="#FF5722" />
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={cars.slice(0, 2)}
-              renderItem={renderCarItem}
-              keyExtractor={(item, index) => item.id?.toString() || index.toString()}
-              scrollEnabled={false}
-              ListFooterComponent={
-                cars.length > 2 && (
-                  <TouchableOpacity 
-                    style={styles.viewMoreButton}
-                    onPress={() => navigation.navigate('MyCars')}
-                  >
-                    <Text style={styles.viewMoreText}>
-                      View {cars.length - 2} more vehicle{cars.length - 2 > 1 ? 's' : ''}
-                    </Text>
-                    <Ionicons name="chevron-forward" size={16} color="#FF5722" />
-                  </TouchableOpacity>
-                )
-              }
-            />
-          </View>
-        )}
-
-        {/* Location Section */}
-        <View style={styles.section}>
-          <TouchableOpacity 
-            style={styles.locationCard}
-            onPress={() => Alert.alert('Coming Soon', 'Location selection feature coming soon')}
-          >
-            <View style={styles.locationIconContainer}>
-              <MaterialCommunityIcons name="map-marker" size={24} color="#FF5722" />
-            </View>
-            <View style={styles.locationInfo}>
-              <Text style={styles.locationTitle}>{t('profile.deliveryLocation')}</Text>
-              <Text style={styles.locationSubtitle}>Kuwait</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color="#ccc" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Account Actions */}
-        <View style={styles.section}>
-          <TouchableOpacity 
-            style={styles.menuItem}
-            onPress={() => Alert.alert(t('profile.helpSupport'), 'Contact support: support@otlob.com')}
-          >
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="help-circle-outline" size={24} color="#666" />
-              <Text style={styles.menuItemText}>{t('profile.helpSupport')}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.menuItem}
-            onPress={() => Alert.alert(t('profile.about'), 'Otlob App v1.0.0\nFast food delivery service')}
-          >
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="information-circle-outline" size={24} color="#666" />
-              <Text style={styles.menuItemText}>{t('profile.about')}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
-          </TouchableOpacity>
-        </View>
+        ))}
 
         {/* Logout Button */}
-        <TouchableOpacity 
-          style={styles.logoutButton} 
+        <TouchableOpacity
+          style={[styles.logoutButton, { backgroundColor: colors.card }]}
           onPress={handleLogout}
+          activeOpacity={0.7}
         >
-          <Ionicons name="log-out-outline" size={20} color="#D32F2F" />
-          <Text style={styles.logoutText}>{t('auth.logout')}</Text>
+          <Ionicons name="log-out-outline" size={22} color={colors.error} />
+          <Text style={[styles.logoutText, { color: colors.error }]}>
+            {t('auth.logout')}
+          </Text>
         </TouchableOpacity>
 
-        <View style={{ height: 30 }} />
+        {/* App Version */}
+        <Text style={[styles.versionText, { color: colors.textLight }]}>
+          Version 1.0.0
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#F5F5F5' 
+  container: {
+    flex: 1,
   },
-  center: { 
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center' 
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#999',
   },
   scrollContent: {
     paddingBottom: 30,
   },
-  
   // Header
   header: {
-    backgroundColor: '#fff',
-    paddingTop: 20,
-    paddingBottom: 30,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 4,
+    padding: 20,
+    paddingTop: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
-  headerTop: {
+  avatarSection: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  avatarContainer: {
-    position: 'relative',
     marginBottom: 16,
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'linear-gradient(135deg, #FF5722 0%, #FF7043 100%)',
-    backgroundColor: '#FF5722',
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 4,
-    borderColor: '#fff',
-    shadowColor: '#FF5722',
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    marginRight: 16,
   },
   avatarText: {
-    fontSize: 42,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '700',
     color: '#fff',
   },
-  verifiedBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 2,
-  },
-  name: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 6,
-    letterSpacing: -0.5,
-  },
-  phone: {
-    fontSize: 15,
-    color: '#666',
-    fontWeight: '500',
-  },
-
-  // Quick Actions
-  quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    backgroundColor: '#fff',
-    marginTop: 15,
-    marginHorizontal: 15,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  actionCard: {
-    alignItems: 'center',
+  userInfo: {
     flex: 1,
   },
-  actionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-    position: 'relative',
-  },
-  actionBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: '#FF5722',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  actionBadgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  actionLabel: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '600',
-    marginTop: 4,
-  },
-
-  // Section
-  section: {
-    marginTop: 15,
-    paddingHorizontal: 15,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-    paddingHorizontal: 5,
-  },
-  sectionHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  sectionTitle: {
-    fontSize: 18,
+  userName: {
+    fontSize: 22,
     fontWeight: '700',
-    color: '#333',
-    letterSpacing: -0.3,
-  },
-  manageButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  manageButtonText: {
-    color: '#FF5722',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  // Default Car Card
-  defaultCarCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 18,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-    borderLeftWidth: 4,
-    borderLeftColor: '#FF5722',
-  },
-  defaultCarLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  defaultCarIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#FFF3E0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  defaultCarInfo: {
-    flex: 1,
-  },
-  defaultCarModel: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#333',
     marginBottom: 4,
   },
-  defaultCarDetails: {
-    fontSize: 13,
-    color: '#666',
+  userPhone: {
+    fontSize: 15,
     fontWeight: '500',
   },
-  defaultBadgeLarge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E8F5E9',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 4,
-  },
-  defaultBadgeTextLarge: {
-    color: '#2E7D32',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-
-  // Empty Car Card
-  emptyCarCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 30,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  emptyCarText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginTop: 12,
-  },
-  emptyCarSubText: {
-    fontSize: 13,
-    color: '#999',
-    marginTop: 4,
-    marginBottom: 20,
-  },
-  addCarButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FF5722',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 8,
-    shadowColor: '#FF5722',
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  addCarButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-
-  // Car Card
-  carCard: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  carCardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  carIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
+  // Car Info
   carInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  carInfoText: {
     flex: 1,
+    marginLeft: 12,
   },
   carModel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 4,
-  },
-  carDetailsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  carColor: {
-    fontSize: 13,
-    color: '#666',
-    fontWeight: '500',
-  },
-  carDivider: {
-    fontSize: 13,
-    color: '#ccc',
-  },
-  carPlate: {
-    fontSize: 13,
-    color: '#666',
-    fontWeight: '600',
-  },
-  defaultBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E8F5E9',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 4,
-  },
-  defaultBadgeText: {
-    color: '#2E7D32',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-
-  // View More Button
-  viewMoreButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    gap: 4,
-  },
-  viewMoreText: {
-    color: '#FF5722',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  // Location Card
-  locationCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  locationIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#FFF3E0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  locationInfo: {
-    flex: 1,
-  },
-  locationTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 2,
   },
-  locationSubtitle: {
+  carDetails: {
     fontSize: 13,
-    color: '#666',
   },
-
+  defaultBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  defaultBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  // Sections
+  section: {
+    marginTop: 24,
+    paddingHorizontal: 16,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  menuContainer: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
   // Menu Items
   menuItem: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 10,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 1,
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   menuItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    flex: 1,
   },
-  menuItemText: {
+  menuIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  menuItemLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    flex: 1,
+  },
+  badge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    marginLeft: 8,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  menuItemRight: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#333',
+    marginRight: 8,
   },
-
-  // Logout Button
+  // Logout
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
-    marginHorizontal: 15,
-    marginTop: 20,
-    padding: 18,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#FFEBEE',
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 24,
+    borderRadius: 12,
     gap: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
   },
   logoutText: {
-    color: '#D32F2F',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
+  },
+  // Version
+  versionText: {
+    textAlign: 'center',
+    fontSize: 12,
+    marginTop: 20,
   },
 });
 

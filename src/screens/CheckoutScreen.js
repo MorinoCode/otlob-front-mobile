@@ -15,9 +15,11 @@ import {
 import api from "../utils/api";
 import { useCart } from "../context/CartContext";
 import { useI18n } from "../context/I18nContext";
+import { useTheme } from "../context/ThemeContext";
 
 const CheckoutScreen = ({ route, navigation }) => {
   const { t } = useI18n();
+  const { colors } = useTheme();
   const { cartItems, cartVendor, totalPrice, clearCart } = useCart();
   
   // Convert cartItems array to object format for compatibility
@@ -136,7 +138,7 @@ const CheckoutScreen = ({ route, navigation }) => {
   if (loading)
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#FF5722" />
+        <ActivityIndicator color={colors.primary} />
       </View>
     );
 
@@ -145,15 +147,15 @@ const CheckoutScreen = ({ route, navigation }) => {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={{ flex: 1 }}
     >
-      <View style={styles.container}>
-        <View style={styles.header}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { backgroundColor: colors.card }]}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.backBtn}
           >
-            <Ionicons name="arrow-back" size={24} color="#333" />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('checkout.checkout')}</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>{t('checkout.checkout')}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -163,53 +165,53 @@ const CheckoutScreen = ({ route, navigation }) => {
         >
           {/* Order Summary */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('checkout.orderSummary')}</Text>
-            <View style={styles.receiptCard}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('checkout.orderSummary')}</Text>
+            <View style={[styles.receiptCard, { backgroundColor: colors.card }]}>
               {Object.values(cart).map((item) => {
                 const finalPrice = getFinalPrice(item);
                 return (
                   <View key={item.id} style={styles.receiptRow}>
-                    <View style={styles.itemBadge}>
-                      <Text style={styles.itemQty}>{item.quantity}x</Text>
+                    <View style={[styles.itemBadge, { backgroundColor: colors.surface }]}>
+                      <Text style={[styles.itemQty, { color: colors.primary }]}>{item.quantity}x</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.itemName}>{item.name}</Text>
+                      <Text style={[styles.itemName, { color: colors.text }]}>{item.name}</Text>
                       {item.discount_percentage > 0 && (
                         <Text style={{ fontSize: 10, color: "#E53935" }}>
                           Discount applied: {item.discount_percentage}%
                         </Text>
                       )}
                     </View>
-                    <Text style={styles.itemPrice}>
+                    <Text style={[styles.itemPrice, { color: colors.text }]}>
                       {(finalPrice * item.quantity).toFixed(3)}
                     </Text>
                   </View>
                 );
               })}
-              <View style={styles.divider} />
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
               <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>{t('checkout.total')}</Text>
-                <Text style={styles.totalValue}>{total.toFixed(3)} KD</Text>
+                <Text style={[styles.totalLabel, { color: colors.text }]}>{t('checkout.total')}</Text>
+                <Text style={[styles.totalValue, { color: colors.primary }]}>{total.toFixed(3)} KD</Text>
               </View>
             </View>
           </View>
 
           {/* Delivery Note (NEW) */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
               {t('checkout.notes')}
             </Text>
-            <View style={styles.noteContainer}>
+            <View style={[styles.noteContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <MaterialCommunityIcons
                 name="comment-text-outline"
                 size={20}
-                color="#FF5722"
+                color={colors.primary}
                 style={styles.noteIcon}
               />
               <TextInput
-                style={styles.noteInput}
+                style={[styles.noteInput, { color: colors.text }]}
                 placeholder="e.g. Near the main entrance, Black Land Cruiser..."
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.textLight}
                 value={customerNote}
                 onChangeText={setCustomerNote}
                 multiline
@@ -219,7 +221,7 @@ const CheckoutScreen = ({ route, navigation }) => {
 
           {/* Car Selection */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('checkout.selectCar')} 🚗</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('checkout.selectCar')} 🚗</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -230,18 +232,20 @@ const CheckoutScreen = ({ route, navigation }) => {
                   key={car.id}
                   style={[
                     styles.carCard,
-                    selectedCar === car.id && styles.carCardActive,
+                    { backgroundColor: colors.card, borderColor: colors.border },
+                    selectedCar === car.id && { backgroundColor: colors.primary, borderColor: colors.primary },
                   ]}
                   onPress={() => setSelectedCar(car.id)}
                 >
                   <Ionicons
                     name="car-sport"
                     size={28}
-                    color={selectedCar === car.id ? "#fff" : "#FF5722"}
+                    color={selectedCar === car.id ? "#fff" : colors.primary}
                   />
                   <Text
                     style={[
                       styles.carModel,
+                      { color: colors.text },
                       selectedCar === car.id && styles.textActive,
                     ]}
                   >
@@ -250,6 +254,7 @@ const CheckoutScreen = ({ route, navigation }) => {
                   <Text
                     style={[
                       styles.carPlate,
+                      { color: colors.textSecondary },
                       selectedCar === car.id && styles.textActive,
                     ]}
                   >
@@ -258,28 +263,28 @@ const CheckoutScreen = ({ route, navigation }) => {
                 </TouchableOpacity>
               ))}
               <TouchableOpacity
-                style={styles.addCarBtn}
+                style={[styles.addCarBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
                 onPress={() => navigation.navigate("AddCar")}
               >
-                <Ionicons name="add" size={30} color="#ccc" />
+                <Ionicons name="add" size={30} color={colors.textLight} />
               </TouchableOpacity>
             </ScrollView>
           </View>
 
           {/* Payment */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('checkout.paymentMethod')}</Text>
-            <View style={styles.paymentOption}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('checkout.paymentMethod')}</Text>
+            <View style={[styles.paymentOption, { backgroundColor: colors.card }]}>
               <MaterialCommunityIcons name="cash" size={24} color="#2E7D32" />
-              <Text style={styles.paymentText}>{t('checkout.cash')}</Text>
-              <Ionicons name="radio-button-on" size={24} color="#FF5722" />
+              <Text style={[styles.paymentText, { color: colors.text }]}>{t('checkout.cash')}</Text>
+              <Ionicons name="radio-button-on" size={24} color={colors.primary} />
             </View>
           </View>
         </ScrollView>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, { backgroundColor: colors.card }]}>
           <TouchableOpacity
-            style={styles.placeOrderBtn}
+            style={[styles.placeOrderBtn, { backgroundColor: colors.primary }]}
             onPress={handlePlaceOrder}
             disabled={processing}
           >
@@ -296,7 +301,7 @@ const CheckoutScreen = ({ route, navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F9F9F9" },
+  container: { flex: 1 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
     flexDirection: "row",
@@ -305,61 +310,56 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingBottom: 15,
     paddingHorizontal: 20,
-    backgroundColor: "#fff",
     elevation: 2,
   },
-  headerTitle: { fontSize: 18, fontWeight: "bold", color: "#333" },
+  headerTitle: { fontSize: 18, fontWeight: "bold" },
   backBtn: { padding: 5 },
   scrollContent: { padding: 20, paddingBottom: 120 },
   section: { marginBottom: 25 },
   sectionTitle: {
     fontSize: 15,
     fontWeight: "bold",
-    color: "#444",
     marginBottom: 10,
     marginLeft: 5,
   },
   receiptCard: {
-    backgroundColor: "#fff",
     borderRadius: 15,
     padding: 15,
     elevation: 3,
   },
   receiptRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
   itemBadge: {
-    backgroundColor: "#FFF3E0",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 5,
     marginRight: 10,
   },
-  itemQty: { color: "#FF5722", fontWeight: "bold", fontSize: 12 },
-  itemName: { flex: 1, fontSize: 15, color: "#333" },
+  itemQty: { fontWeight: "bold", fontSize: 12 },
+  itemName: { flex: 1, fontSize: 15 },
   itemPrice: { fontWeight: "bold" },
-  divider: { height: 1, backgroundColor: "#eee", marginVertical: 10 },
+  divider: { height: 1, marginVertical: 10 },
   totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
   totalLabel: { fontSize: 16, fontWeight: "bold" },
-  totalValue: { fontSize: 20, fontWeight: "bold", color: "#FF5722" },
+  totalValue: { fontSize: 20, fontWeight: "bold" },
 
   // Note Styles
   noteContainer: {
     flexDirection: "row",
-    backgroundColor: "#fff",
     borderRadius: 12,
     padding: 12,
     elevation: 2,
     minHeight: 60,
+    borderWidth: 1,
   },
   noteIcon: { marginTop: 2 },
   noteInput: {
     flex: 1,
     marginLeft: 10,
     fontSize: 14,
-    color: "#333",
     textAlignVertical: "top",
   },
 
@@ -367,7 +367,6 @@ const styles = StyleSheet.create({
   carCard: {
     width: 120,
     height: 130,
-    backgroundColor: "#fff",
     borderRadius: 12,
     padding: 10,
     marginRight: 12,
@@ -377,9 +376,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "transparent",
   },
-  carCardActive: { borderColor: "#FF5722", backgroundColor: "#FF5722" },
+  carCardActive: {},
   carModel: { fontWeight: "bold", marginTop: 8, fontSize: 13 },
-  carPlate: { fontSize: 11, color: "#888", marginTop: 2 },
+  carPlate: { fontSize: 11, marginTop: 2 },
   textActive: { color: "#fff" },
   addCarBtn: {
     width: 80,
@@ -387,14 +386,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderStyle: "dashed",
     borderWidth: 2,
-    borderColor: "#ddd",
     alignItems: "center",
     justifyContent: "center",
   },
   paymentOption: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
     padding: 15,
     borderRadius: 12,
     elevation: 2,
@@ -405,13 +402,10 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "#fff",
     padding: 20,
     borderTopWidth: 1,
-    borderColor: "#eee",
   },
   placeOrderBtn: {
-    backgroundColor: "#FF5722",
     height: 55,
     borderRadius: 12,
     justifyContent: "center",
