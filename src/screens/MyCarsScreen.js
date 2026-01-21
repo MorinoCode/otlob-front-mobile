@@ -12,8 +12,10 @@ import {
   View 
 } from 'react-native';
 import api from '../utils/api';
+import { useI18n } from '../context/I18nContext';
 
 const MyCarsScreen = ({ navigation }) => {
+  const { t } = useI18n();
   const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -47,7 +49,7 @@ const MyCarsScreen = ({ navigation }) => {
       // Refetch the list to show the change
       await fetchCars();
     } catch (err) {
-      Alert.alert('Error', 'Failed to update default car.');
+      Alert.alert(t('auth.error'), 'Failed to update default car.');
       console.log(err);
     } finally {
       setUpdatingId(null);
@@ -75,7 +77,7 @@ const MyCarsScreen = ({ navigation }) => {
           item.is_default && (
             <View style={styles.defaultBadge}>
               <Ionicons name="star" size={12} color="#fff" />
-              <Text style={styles.defaultText}>Default</Text>
+              <Text style={styles.defaultText}>{t('cars.default')}</Text>
             </View>
           )
         )}
@@ -89,7 +91,7 @@ const MyCarsScreen = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Cars</Text>
+        <Text style={styles.headerTitle}>{t('cars.myCars')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -103,13 +105,13 @@ const MyCarsScreen = ({ navigation }) => {
           renderItem={renderCarItem}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={styles.list}
-          ListEmptyComponent={<Text style={styles.emptyText}>No cars found. Add one to get started!</Text>}
+          ListEmptyComponent={<Text style={styles.emptyText}>{t('cars.noCars')}</Text>}
         />
       )}
 
       <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate('AddCar')}>
         <Ionicons name="add" size={24} color="#fff" />
-        <Text style={styles.addButtonText}>Add New Car</Text>
+        <Text style={styles.addButtonText}>{t('cars.addNewVehicle')}</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );

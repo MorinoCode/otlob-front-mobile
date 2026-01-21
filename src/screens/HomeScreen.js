@@ -15,6 +15,7 @@ import {
 import MapView, { Marker } from "react-native-maps";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useCart } from "../context/CartContext";
+import { useI18n } from "../context/I18nContext";
 import api from "../utils/api";
 import { CATEGORIES, getCategoryIcon } from "../utils/categories";
 
@@ -22,6 +23,7 @@ const PLACEHOLDER_IMAGE = "https://via.placeholder.com/150";
 
 const HomeScreen = ({ navigation }) => {
   const { totalItems, showCart } = useCart();
+  const { t } = useI18n();
   const [viewMode, setViewMode] = useState("MAP");
   const [vendors, setVendors] = useState([]);
   const [filteredVendors, setFilteredVendors] = useState([]);
@@ -173,7 +175,7 @@ const HomeScreen = ({ navigation }) => {
           />
           {isClosed && (
             <View style={styles.closedOverlay}>
-              <Text style={styles.closedText}>CLOSED</Text>
+              <Text style={styles.closedText}>{t('home.closed')}</Text>
             </View>
           )}
         </View>
@@ -184,7 +186,7 @@ const HomeScreen = ({ navigation }) => {
             </Text>
             {isClosed && (
               <View style={styles.closedBadge}>
-                <Text style={styles.closedBadgeText}>Closed</Text>
+                <Text style={styles.closedBadgeText}>{t('home.closedBadge')}</Text>
               </View>
             )}
           </View>
@@ -214,7 +216,7 @@ const HomeScreen = ({ navigation }) => {
 
           <View style={styles.cardHoursRow}>
             <Ionicons name="time-outline" size={12} color="#999" />
-            <Text style={styles.cardHoursText}>{openingHours}</Text>
+            <Text style={styles.cardHoursText}>{t('home.openingHours')}: {openingHours}</Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -253,7 +255,7 @@ const HomeScreen = ({ navigation }) => {
             <Ionicons name="search" size={20} color="#666" />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search for restaurants or cuisines..."
+              placeholder={t('home.searchPlaceholder')}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
@@ -383,7 +385,7 @@ const HomeScreen = ({ navigation }) => {
                   disabled={!selectedVendor.is_open}
                 >
                   <Text style={styles.miniCardBtnText}>
-                    {selectedVendor.is_open ? "Menu" : "Closed"}
+                    {selectedVendor.is_open ? t('home.menu') : t('home.closedBadge')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -409,7 +411,7 @@ const HomeScreen = ({ navigation }) => {
           color="#fff"
         />
         <Text style={styles.toggleText}>
-          {viewMode === "MAP" ? "List View" : "Map View"}
+          {viewMode === "MAP" ? t('home.listView') : t('home.mapView')}
         </Text>
       </TouchableOpacity>
     </SafeAreaView>

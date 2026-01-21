@@ -13,9 +13,11 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../utils/api';
 import { useCart } from '../context/CartContext';
+import { useI18n } from '../context/I18nContext';
 
 const HistoryScreen = ({ navigation }) => {
-  const [activeTab, setActiveTab] = useState('active'); // 'active' or 'history'
+  const { t } = useI18n();
+  const [activeTab, setActiveTab] = useState('active');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -78,18 +80,18 @@ const HistoryScreen = ({ navigation }) => {
       });
 
     } catch (error) {
-      Alert.alert("Error", "Could not restore the cart.");
+      Alert.alert(t('auth.error'), "Could not restore the cart.");
     }
   };
 
   const getStatusStyle = (status) => {
     switch (status) {
-      case 'PENDING': return { bg: '#FFF3E0', text: '#FF9800', label: 'Processing' };
-      case 'COOKING': return { bg: '#E3F2FD', text: '#2196F3', label: 'Cooking' };
-      case 'READY': return { bg: '#E8F5E9', text: '#4CAF50', label: 'Ready' };
-      case 'COMPLETED': return { bg: '#F5F5F5', text: '#757575', label: 'Completed' };
-      case 'ACCEPTED': return { bg: '#E1F5FE', text: '#0288D1', label: 'Accepted' };
-      case 'CANCELLED': return { bg: '#FFEBEE', text: '#D32F2F', label: 'Cancelled' };
+      case 'PENDING': return { bg: '#FFF3E0', text: '#FF9800', label: t('orders.pending') };
+      case 'COOKING': return { bg: '#E3F2FD', text: '#2196F3', label: t('orders.cooking') };
+      case 'READY': return { bg: '#E8F5E9', text: '#4CAF50', label: t('orders.ready') };
+      case 'COMPLETED': return { bg: '#F5F5F5', text: '#757575', label: t('orders.completed') };
+      case 'ACCEPTED': return { bg: '#E1F5FE', text: '#0288D1', label: t('orders.accepted') };
+      case 'CANCELLED': return { bg: '#FFEBEE', text: '#D32F2F', label: t('orders.cancelled') };
       default: return { bg: '#eee', text: '#000', label: status };
     }
   };
@@ -137,14 +139,14 @@ const HistoryScreen = ({ navigation }) => {
               onPress={() => handleReOrder(item)}
             >
               <Ionicons name="refresh" size={16} color="#FF5722" />
-              <Text style={styles.reOrderText}>Order Again</Text>
+              <Text style={styles.reOrderText}>{t('orders.reOrder')}</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity 
               style={styles.trackBtn} 
               onPress={() => navigation.navigate('OrderDetails', { orderId: item.id })}
             >
-              <Text style={styles.trackText}>Track Live</Text>
+              <Text style={styles.trackText}>{t('orders.trackOrder')}</Text>
               <Ionicons name="chevron-forward" size={16} color="#fff" />
             </TouchableOpacity>
           )}
@@ -164,7 +166,7 @@ const HistoryScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Orders</Text>
+        <Text style={styles.headerTitle}>{t('orders.orders')}</Text>
         <TouchableOpacity style={styles.cartButton} onPress={showCart}>
           <Ionicons name="cart-outline" size={28} color="#333" />
           {totalItems > 0 && (
@@ -182,7 +184,7 @@ const HistoryScreen = ({ navigation }) => {
           onPress={() => setActiveTab('active')}
         >
           <Text style={[styles.tabText, activeTab === 'active' && styles.tabTextActive]}>
-            Active Orders
+            {t('orders.activeOrders')}
           </Text>
           {activeTab === 'active' && <View style={styles.tabIndicator} />}
         </TouchableOpacity>
@@ -192,7 +194,7 @@ const HistoryScreen = ({ navigation }) => {
           onPress={() => setActiveTab('history')}
         >
           <Text style={[styles.tabText, activeTab === 'history' && styles.tabTextActive]}>
-            Order History
+            {t('orders.orderHistory')}
           </Text>
           {activeTab === 'history' && <View style={styles.tabIndicator} />}
         </TouchableOpacity>
@@ -208,8 +210,8 @@ const HistoryScreen = ({ navigation }) => {
             <Ionicons name={activeTab === 'active' ? 'hourglass-outline' : 'receipt-outline'} size={64} color="#ccc" />
             <Text style={styles.emptyText}>
               {activeTab === 'active' 
-                ? 'No active orders' 
-                : 'No completed orders yet'}
+                ? t('orders.noActiveOrders') 
+                : t('orders.noOrderHistory')}
             </Text>
           </View>
         }
