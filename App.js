@@ -22,12 +22,15 @@ import ProfileScreen from "./src/screens/ProfileScreen";
 
 // Context & Components
 import { CartProvider } from './src/context/CartContext';
+import { I18nProvider, useI18n } from './src/context/I18nContext';
 import FloatingCart from './components/FloatingCart';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 function MainTabNavigator() {
+  const { t } = useI18n();
+  
   return (
     <View style={{ flex: 1 }}>
       <Tab.Navigator
@@ -44,9 +47,21 @@ function MainTabNavigator() {
           },
         })}
       >
-        <Tab.Screen name="Explore" component={HomeScreen} />
-        <Tab.Screen name="Orders" component={HistoryScreen} />
-        <Tab.Screen name="Profile" component={ProfileScreen} />
+        <Tab.Screen 
+          name="Explore" 
+          component={HomeScreen} 
+          options={{ tabBarLabel: t('home.explore') }}
+        />
+        <Tab.Screen 
+          name="Orders" 
+          component={HistoryScreen} 
+          options={{ tabBarLabel: t('orders.orders') }}
+        />
+        <Tab.Screen 
+          name="Profile" 
+          component={ProfileScreen} 
+          options={{ tabBarLabel: t('profile.myProfile') }}
+        />
       </Tab.Navigator>
       
       {/* Floating Cart will appear on top of these tabs */}
@@ -92,23 +107,25 @@ export default function App() {
   }
 
   return (
-    <CartProvider>
-      <NavigationContainer>
-        <Stack.Navigator
-          screenOptions={{ headerShown: false }}
-          initialRouteName={initialRoute}
-        >
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Otp" component={OtpScreen} />
-          <Stack.Screen name="Register" component={RegisterScreen} />
-          <Stack.Screen name="Main" component={MainTabNavigator} />
-          <Stack.Screen name="Menu" component={MenuScreen} />
-          <Stack.Screen name="Checkout" component={CheckoutScreen} />
-          <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
-          <Stack.Screen name="AddCar" component={AddCarScreen} />
-          <Stack.Screen name="MyCars" component={MyCarsScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </CartProvider>
+    <I18nProvider>
+      <CartProvider>
+        <NavigationContainer>
+          <Stack.Navigator
+            screenOptions={{ headerShown: false }}
+            initialRouteName={initialRoute}
+          >
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Otp" component={OtpScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="Main" component={MainTabNavigator} />
+            <Stack.Screen name="Menu" component={MenuScreen} />
+            <Stack.Screen name="Checkout" component={CheckoutScreen} />
+            <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
+            <Stack.Screen name="AddCar" component={AddCarScreen} />
+            <Stack.Screen name="MyCars" component={MyCarsScreen} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </CartProvider>
+    </I18nProvider>
   );
 }

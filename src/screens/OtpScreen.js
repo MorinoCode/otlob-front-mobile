@@ -2,8 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Keyboard, ActivityIndicator, Alert } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import api from '../utils/api';
+import { useI18n } from '../context/I18nContext';
 
 const OtpScreen = ({ route, navigation }) => {
+  const { t } = useI18n();
   const { phone } = route.params || { phone: '' }; 
   const [otp, setOtp] = useState(['', '', '', '']);
   const [loading, setLoading] = useState(false);
@@ -20,7 +22,7 @@ const OtpScreen = ({ route, navigation }) => {
   const handleVerify = async () => {
     const code = otp.join('');
     if (code.length < 4) {
-      Alert.alert('Error', 'Please enter the 4-digit code');
+      Alert.alert(t('auth.error'), t('auth.enter4Digit'));
       return;
     }
 
@@ -35,21 +37,18 @@ const OtpScreen = ({ route, navigation }) => {
 
       const { token, user, isNewUser } = response.data;
 
-      // ذخیره سازی امن
       await SecureStore.setItemAsync('token', String(token));
       await SecureStore.setItemAsync('user', JSON.stringify(user));
 
-      // مسیریابی درست
       if (isNewUser) {
         navigation.replace('Register');
       } else {
-        // 🔴 FIX: قبلاً اینجا Map بود که غلط است. باید Main باشد.
         navigation.replace('Main');
       }
 
     } catch (error) {
       console.log('Login Error:', error);
-      Alert.alert('Login Failed', error.response?.data?.error || 'Something went wrong');
+      Alert.alert(t('auth.loginFailed'), error.response?.data?.error || t('auth.somethingWentWrong'));
     } finally {
       setLoading(false);
     }
@@ -57,8 +56,8 @@ const OtpScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Verification</Text>
-      <Text style={styles.subtitle}>Enter the code sent to {phone}</Text>
+      <Text style={styles.title}>{t('auth.verifyOtp')}</Text>
+      <Text style={styles.subtitle}>{t('auth.enterOtp')}: {phone}</Text>
       
       <View style={styles.otpContainer}>
         {otp.map((digit, index) => (
@@ -75,7 +74,7 @@ const OtpScreen = ({ route, navigation }) => {
       </View>
 
       <TouchableOpacity style={styles.button} onPress={handleVerify} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Verify</Text>}
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{t('auth.verifyCode')}</Text>}
       </TouchableOpacity>
     </View>
   );

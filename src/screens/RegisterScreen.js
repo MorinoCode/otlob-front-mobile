@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import api from '../utils/api';
+import { useI18n } from '../context/I18nContext';
 
 // لیست رنگ‌های رایج ماشین
 const CAR_COLORS = [
@@ -31,9 +32,10 @@ const CAR_COLORS = [
 ];
 
 const RegisterScreen = ({ navigation }) => {
+  const { t } = useI18n();
   const [fullName, setFullName] = useState('');
   const [carModel, setCarModel] = useState('');
-  const [carColor, setCarColor] = useState(''); // Stores color NAME
+  const [carColor, setCarColor] = useState('');
   const [carPlate, setCarPlate] = useState('');
   const [loading, setLoading] = useState(false);
   const [isFormValid, setIsFormValid] = useState(false);
@@ -69,7 +71,7 @@ const RegisterScreen = ({ navigation }) => {
       navigation.replace('Map');
     } catch (error) {
       console.log(error);
-      Alert.alert('Error', 'Could not save profile. Please try again.');
+      Alert.alert(t('auth.error'), t('register.saveProfileError'));
     } finally {
       setLoading(false);
     }
@@ -81,28 +83,28 @@ const RegisterScreen = ({ navigation }) => {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           
           <View style={styles.headerContainer}>
-            <Text style={styles.header}>Finish Setup</Text>
-            <Text style={styles.subHeader}>Help us recognize your car instantly! 🚗</Text>
+            <Text style={styles.header}>{t('register.finishSetup')}</Text>
+            <Text style={styles.subHeader}>{t('register.helpRecognize')}</Text>
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Full Name</Text>
+            <Text style={styles.label}>{t('auth.fullName')}</Text>
             <TextInput 
               style={styles.input} 
-              placeholder="e.g. Ali Ahmed" 
+              placeholder={t('auth.fullName')} 
               placeholderTextColor="#999" 
               value={fullName} 
               onChangeText={setFullName} 
             />
           </View>
 
-          <Text style={styles.sectionTitle}>Vehicle Details</Text>
+          <Text style={styles.sectionTitle}>{t('register.vehicleDetails')}</Text>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Car Model</Text>
+            <Text style={styles.label}>{t('cars.carModel')}</Text>
             <TextInput 
               style={styles.input} 
-              placeholder="e.g. Toyota Prado, Camry..." 
+              placeholder={t('cars.enterModel')} 
               placeholderTextColor="#999" 
               value={carModel} 
               onChangeText={setCarModel} 
@@ -110,7 +112,7 @@ const RegisterScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Car Color: <Text style={{color:'#FF5722', fontWeight:'bold'}}>{carColor}</Text></Text>
+            <Text style={styles.label}>{t('cars.carColor')}: <Text style={{color:'#FF5722', fontWeight:'bold'}}>{carColor}</Text></Text>
             <View style={styles.colorsGrid}>
               {CAR_COLORS.map((color) => (
                 <TouchableOpacity
@@ -135,10 +137,10 @@ const RegisterScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>License Plate (Required)</Text>
+            <Text style={styles.label}>{t('cars.plateNumber')}</Text>
             <TextInput 
               style={styles.input} 
-              placeholder="e.g. 50-12345" 
+              placeholder={t('cars.enterPlate')} 
               placeholderTextColor="#999" 
               value={carPlate} 
               onChangeText={setCarPlate} 
@@ -153,7 +155,7 @@ const RegisterScreen = ({ navigation }) => {
             onPress={handleSubmit} 
             disabled={!isFormValid || loading}
           >
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Get Started 🚀</Text>}
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{t('register.getStarted')}</Text>}
           </TouchableOpacity>
         </View>
 

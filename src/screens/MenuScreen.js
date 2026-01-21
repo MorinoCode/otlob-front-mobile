@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import api from '../utils/api';
 import { useCart } from '../context/CartContext';
+import { useI18n } from '../context/I18nContext';
 import FloatingCart from '../../components/FloatingCart';
 
 const MENU_CATS = ['All', 'Popular', 'Burgers', 'Sides', 'Drinks'];
@@ -20,6 +21,7 @@ const MENU_CATS = ['All', 'Popular', 'Burgers', 'Sides', 'Drinks'];
 const MenuScreen = ({ route, navigation }) => {
   const { vendorId, vendorName } = route.params;
   const { cartItems, addToCart, updateQuantity } = useCart();
+  const { t } = useI18n();
   
   const [menu, setMenu] = useState([]);
   const [vendorInfo, setVendorInfo] = useState(null);
@@ -128,7 +130,7 @@ const MenuScreen = ({ route, navigation }) => {
           
           {qty === 0 ? (
             <TouchableOpacity style={styles.addButton} onPress={() => addToCart(item, vendor)}>
-              <Text style={styles.addButtonText}>ADD</Text>
+              <Text style={styles.addButtonText}>{t('menu.addToCart')}</Text>
             </TouchableOpacity>
           ) : (
             <View style={styles.counterContainer}>
@@ -203,7 +205,7 @@ const MenuScreen = ({ route, navigation }) => {
               styles.statusText, 
               { color: vendorInfo?.isOpen ? '#2E7D32' : '#C62828' }
             ]}>
-              {vendorInfo?.isOpen ? 'Open Now' : 'Closed'}
+              {vendorInfo?.isOpen ? t('menu.open') : t('menu.closed')}
             </Text>
           </View>
         </View>
@@ -231,7 +233,7 @@ const MenuScreen = ({ route, navigation }) => {
         )}
         scrollEventThrottle={16}
       >
-        <Text style={styles.sectionTitle}>{selectedCat} Menu</Text>
+        <Text style={styles.sectionTitle}>{selectedCat} {t('menu.menu')}</Text>
         {menu.map((item) => <View key={item.id}>{renderMenuItem({ item })}</View>)}
       </Animated.ScrollView>
       <FloatingCart />

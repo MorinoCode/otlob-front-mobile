@@ -14,9 +14,10 @@ import {
 } from "react-native";
 import api from "../utils/api";
 import { useCart } from "../context/CartContext";
+import { useI18n } from "../context/I18nContext";
 
 const CheckoutScreen = ({ route, navigation }) => {
-  // Use cart from context instead of route params
+  const { t } = useI18n();
   const { cartItems, cartVendor, totalPrice, clearCart } = useCart();
   
   // Convert cartItems array to object format for compatibility
@@ -36,8 +37,8 @@ const CheckoutScreen = ({ route, navigation }) => {
   // Check if cart is empty and redirect
   useEffect(() => {
     if (cartItems && cartItems.length === 0 && !route.params?.cart) {
-      Alert.alert("Empty Cart", "Your cart is empty", [
-        { text: "OK", onPress: () => navigation.goBack() }
+      Alert.alert(t('cart.cart'), t('cart.empty'), [
+        { text: t('common.close'), onPress: () => navigation.goBack() }
       ]);
     }
   }, [cartItems]);
@@ -79,7 +80,7 @@ const CheckoutScreen = ({ route, navigation }) => {
 
   const handlePlaceOrder = async () => {
     if (!selectedCar) {
-      Alert.alert("Attention", "Please select a car for delivery 🚗");
+      Alert.alert(t('common.confirm'), t('checkout.selectCar'));
       return;
     }
 
@@ -111,7 +112,7 @@ const CheckoutScreen = ({ route, navigation }) => {
         "Your order has been sent to the restaurant.",
         [
           {
-            text: "Track Order",
+            text: t('orders.trackOrder'),
             onPress: () =>
               navigation.replace("OrderDetails", {
                 orderId: createdOrder.id,
@@ -124,8 +125,8 @@ const CheckoutScreen = ({ route, navigation }) => {
     } catch (error) {
       console.log("Place Order Error:", error.response?.data || error.message);
       Alert.alert(
-        "Order Failed",
-        error.response?.data?.error || "Something went wrong.",
+        t('orders.orders'),
+        error.response?.data?.error || t('auth.somethingWentWrong'),
       );
     } finally {
       setProcessing(false);
@@ -152,7 +153,7 @@ const CheckoutScreen = ({ route, navigation }) => {
           >
             <Ionicons name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Checkout</Text>
+          <Text style={styles.headerTitle}>{t('checkout.checkout')}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -162,7 +163,7 @@ const CheckoutScreen = ({ route, navigation }) => {
         >
           {/* Order Summary */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Order Summary</Text>
+            <Text style={styles.sectionTitle}>{t('checkout.orderSummary')}</Text>
             <View style={styles.receiptCard}>
               {Object.values(cart).map((item) => {
                 const finalPrice = getFinalPrice(item);
@@ -187,7 +188,7 @@ const CheckoutScreen = ({ route, navigation }) => {
               })}
               <View style={styles.divider} />
               <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Total Amount</Text>
+                <Text style={styles.totalLabel}>{t('checkout.total')}</Text>
                 <Text style={styles.totalValue}>{total.toFixed(3)} KD</Text>
               </View>
             </View>
@@ -196,7 +197,7 @@ const CheckoutScreen = ({ route, navigation }) => {
           {/* Delivery Note (NEW) */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
-              Where are you parked? (Optional)
+              {t('checkout.notes')}
             </Text>
             <View style={styles.noteContainer}>
               <MaterialCommunityIcons
@@ -218,7 +219,7 @@ const CheckoutScreen = ({ route, navigation }) => {
 
           {/* Car Selection */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Deliver to Car 🚗</Text>
+            <Text style={styles.sectionTitle}>{t('checkout.selectCar')} 🚗</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -267,10 +268,10 @@ const CheckoutScreen = ({ route, navigation }) => {
 
           {/* Payment */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Payment Method</Text>
+            <Text style={styles.sectionTitle}>{t('checkout.paymentMethod')}</Text>
             <View style={styles.paymentOption}>
               <MaterialCommunityIcons name="cash" size={24} color="#2E7D32" />
-              <Text style={styles.paymentText}>Pay on Delivery</Text>
+              <Text style={styles.paymentText}>{t('checkout.cash')}</Text>
               <Ionicons name="radio-button-on" size={24} color="#FF5722" />
             </View>
           </View>
@@ -285,7 +286,7 @@ const CheckoutScreen = ({ route, navigation }) => {
             {processing ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.btnText}>PLACE ORDER</Text>
+              <Text style={styles.btnText}>{t('checkout.placeOrder')}</Text>
             )}
           </TouchableOpacity>
         </View>

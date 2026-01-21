@@ -4,6 +4,7 @@ import { View, Text, TouchableOpacity, Modal, StyleSheet, FlatList } from 'react
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '../src/context/CartContext';
+import { useI18n } from '../src/context/I18nContext';
 
 const FloatingCart = () => {
   const { 
@@ -15,6 +16,7 @@ const FloatingCart = () => {
     showCart, 
     hideCart 
   } = useCart();
+  const { t } = useI18n();
   const navigation = useNavigation();
 
   // Don't show the floating bar if cart is empty, but the modal can still be controlled externally
@@ -34,7 +36,7 @@ const FloatingCart = () => {
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{totalItems}</Text>
             </View>
-            <Text style={styles.viewCartText}>View Cart</Text>
+            <Text style={styles.viewCartText}>{t('cart.viewCart')}</Text>
           </View>
           <Text style={styles.totalText}>{(totalPrice || 0).toFixed(3)} KD</Text>
         </TouchableOpacity>
@@ -50,7 +52,7 @@ const FloatingCart = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Your Order</Text>
+              <Text style={styles.modalTitle}>{t('cart.yourOrder')}</Text>
               <TouchableOpacity onPress={hideCart}>
                 <Ionicons name="close-circle" size={30} color="#333" />
               </TouchableOpacity>
@@ -60,7 +62,7 @@ const FloatingCart = () => {
               data={cartItems}
               keyExtractor={(item) => item.id.toString()}
               contentContainerStyle={{ paddingBottom: 20 }}
-              ListEmptyComponent={<Text style={styles.emptyCartText}>Your cart is empty.</Text>}
+              ListEmptyComponent={<Text style={styles.emptyCartText}>{t('cart.empty')}</Text>}
               renderItem={({ item }) => (
                 <View style={styles.cartItem}>
                   <View style={{ flex: 1 }}>
@@ -88,11 +90,11 @@ const FloatingCart = () => {
             {totalItems > 0 && (
               <View style={styles.footer}>
                 <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>Total Amount</Text>
+                  <Text style={styles.totalLabel}>{t('cart.totalAmount')}</Text>
                   <Text style={styles.totalValue}>{(totalPrice || 0).toFixed(3)} KD</Text>
                 </View>
                 <TouchableOpacity style={styles.checkoutButton} onPress={handleCheckout}>
-                  <Text style={styles.checkoutButtonText}>Go to Checkout</Text>
+                  <Text style={styles.checkoutButtonText}>{t('cart.goToCheckout')}</Text>
                 </TouchableOpacity>
               </View>
             )}

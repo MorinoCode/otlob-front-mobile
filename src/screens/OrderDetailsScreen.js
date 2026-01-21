@@ -18,6 +18,7 @@ import api from '../utils/api';
 import socket from '../utils/socket';
 
 const OrderDetailsScreen = ({ route, navigation }) => {
+  const { t } = useI18n();
   const { orderId } = route.params;
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -135,16 +136,16 @@ const OrderDetailsScreen = ({ route, navigation }) => {
     try {
       await api.post(`/orders/${orderId}/rate`, { rating: stars });
       setUserRating(stars);
-      Alert.alert("Thank you! ⭐", "Your feedback helps us improve.");
+      Alert.alert(t('common.done') + " ⭐", "Your feedback helps us improve.");
     } catch (error) {
       console.error('Rating Error:', error);
-      Alert.alert("Error", "Could not submit rating. Please try again.");
+      Alert.alert(t('auth.error'), "Could not submit rating. Please try again.");
     }
   };
 
   const handleCall = (phoneNumber) => {
     if (!phoneNumber) {
-      Alert.alert('Error', 'Restaurant phone number not available');
+      Alert.alert(t('auth.error'), 'Restaurant phone number not available');
       return;
     }
     Linking.openURL(`tel:${phoneNumber}`);
@@ -152,7 +153,7 @@ const OrderDetailsScreen = ({ route, navigation }) => {
 
   const navigateToRestaurant = () => {
     if (!order.vendor_latitude || !order.vendor_longitude) {
-      Alert.alert('Error', 'Restaurant location not available');
+      Alert.alert(t('auth.error'), 'Restaurant location not available');
       return;
     }
 
@@ -201,7 +202,7 @@ const OrderDetailsScreen = ({ route, navigation }) => {
 
     if (!canClickArrived()) {
       console.log('⏱️ Cooldown active, cannot click');
-      Alert.alert("Please wait", `You can notify again in ${getRemainingTime()} seconds.`);
+      Alert.alert(t('common.loading'), t('orders.cooldown') + `: ${getRemainingTime()} ${t('common.loading')}`);
       return;
     }
 
@@ -212,7 +213,7 @@ const OrderDetailsScreen = ({ route, navigation }) => {
       console.log('Location permission status:', status);
       
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required to notify restaurant.');
+        Alert.alert(t('auth.error'), 'Location permission is required to notify restaurant.');
         return;
       }
 
@@ -261,9 +262,9 @@ const OrderDetailsScreen = ({ route, navigation }) => {
       console.log('✅ State updated');
 
       Alert.alert(
-        "Restaurant Notified! 🎉",
+        t('common.done') + " 🎉",
         "They will bring the order to your car immediately.",
-        [{ text: "OK" }]
+        [{ text: t('common.close') }]
       );
 
       // Reset button state after 3 minutes
@@ -274,7 +275,7 @@ const OrderDetailsScreen = ({ route, navigation }) => {
     } catch (error) {
       console.error('❌ Error in handleArrivedClick:', error);
       console.error('Error details:', error.message);
-      Alert.alert("Error", `Could not send notification: ${error.message || 'Please try again.'}`);
+      Alert.alert(t('auth.error'), `Could not send notification: ${error.message || 'Please try again.'}`);
     }
   };
 
@@ -310,7 +311,7 @@ const OrderDetailsScreen = ({ route, navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="close" size={28} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Live Tracking</Text>
+        <Text style={styles.headerTitle}>{t('orders.orderDetails')}</Text>
         {order.vendor_latitude && order.vendor_longitude ? (
           <TouchableOpacity 
             onPress={navigateToRestaurant}
@@ -429,7 +430,7 @@ const OrderDetailsScreen = ({ route, navigation }) => {
                   styles.callRestaurantText,
                   !order.vendor_phone && styles.callRestaurantTextDisabled
                 ]}>
-                  {order.vendor_phone ? 'Call Restaurant' : 'Phone Not Available'}
+                  {order.vendor_phone ? t('orders.callRestaurant') : 'Phone Not Available'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -454,7 +455,7 @@ const OrderDetailsScreen = ({ route, navigation }) => {
           >
             <MaterialCommunityIcons name="map-marker" size={24} color="#fff" />
             <View style={styles.navigateBtnTextContainer}>
-              <Text style={styles.navigateBtnText}>Navigate to Restaurant</Text>
+              <Text style={styles.navigateBtnText}>{t('orders.navigateRestaurant')}</Text>
               <Text style={styles.navigateBtnSubText}>Open Maps for directions</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#fff" />
@@ -486,7 +487,7 @@ const OrderDetailsScreen = ({ route, navigation }) => {
               />
               <View style={styles.arrivedBtnTextContainer}>
                 <Text style={styles.arrivedText}>
-                  {isArrivedClicked ? "NOTIFIED ✓" : "I'M HERE 🚗"}
+                  {isArrivedClicked ? "NOTIFIED ✓" : t('orders.imHere')}
                 </Text>
                 <Text style={styles.arrivedSubText}>
                   {isArrivedClicked 

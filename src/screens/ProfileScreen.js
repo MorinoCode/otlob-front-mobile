@@ -16,6 +16,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import api from '../utils/api';
 import { useCart } from '../context/CartContext';
+import { useI18n } from '../context/I18nContext';
 
 const { width } = Dimensions.get('window');
 
@@ -24,6 +25,7 @@ const ProfileScreen = ({ navigation }) => {
   const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(true);
   const { totalItems, showCart } = useCart();
+  const { t, language, changeLanguage } = useI18n();
   
   const isFocused = useIsFocused();
 
@@ -51,12 +53,12 @@ const ProfileScreen = ({ navigation }) => {
 
   const handleLogout = () => {
     Alert.alert(
-      'Log Out',
-      'Are you sure you want to log out?',
+      t('auth.logout'),
+      t('auth.logoutConfirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Log Out',
+          text: t('auth.logout'),
           style: 'destructive',
           onPress: async () => {
             await SecureStore.deleteItemAsync('token');
@@ -65,6 +67,30 @@ const ProfileScreen = ({ navigation }) => {
               index: 0,
               routes: [{ name: 'Login' }],
             });
+          }
+        }
+      ]
+    );
+  };
+
+  const handleLanguageChange = () => {
+    const newLanguage = language === 'en' ? 'ar' : 'en';
+    Alert.alert(
+      t('profile.selectLanguage'),
+      t('profile.selectLanguage') + '?\n' + (newLanguage === 'ar' ? 'تغيير اللغة إلى العربية' : 'Change language to English'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.confirm'),
+          onPress: async () => {
+            await changeLanguage(newLanguage);
+            Alert.alert(
+              t('common.done'),
+              newLanguage === 'ar' 
+                ? 'تم تغيير اللغة. قد تحتاج إلى إعادة تشغيل التطبيق لإكمال التغيير.'
+                : 'Language changed. You may need to restart the app to complete the change.',
+              [{ text: t('common.close') }]
+            );
           }
         }
       ]
@@ -92,7 +118,7 @@ const ProfileScreen = ({ navigation }) => {
       {item.is_default && (
         <View style={styles.defaultBadge}>
           <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-          <Text style={styles.defaultBadgeText}>Default</Text>
+          <Text style={styles.defaultBadgeText}>{t('profile.default')}</Text>
         </View>
       )}
     </TouchableOpacity>
@@ -103,7 +129,7 @@ const ProfileScreen = ({ navigation }) => {
       <SafeAreaView style={styles.container}>
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#FF5722" />
-          <Text style={styles.loadingText}>Loading profile...</Text>
+          <Text style={styles.loadingText}>{t('profile.loadingProfile')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -132,7 +158,7 @@ const ProfileScreen = ({ navigation }) => {
             </View>
             <Text style={styles.name}>{user?.full_name || 'User'}</Text>
             <Text style={styles.phone}>
-              <Ionicons name="call-outline" size={14} color="#999" /> {user?.phone_number || 'N/A'}
+              <Ionicons name="call-outline" size={14} color="#999" /> {user?.phone_number || t('common.loading')}
             </Text>
           </View>
         </View>
@@ -151,7 +177,7 @@ const ProfileScreen = ({ navigation }) => {
                 </View>
               )}
             </View>
-            <Text style={styles.actionLabel}>Cart</Text>
+            <Text style={styles.actionLabel}>{t('profile.cart')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -161,7 +187,7 @@ const ProfileScreen = ({ navigation }) => {
             <View style={[styles.actionIcon, { backgroundColor: '#E3F2FD' }]}>
               <Ionicons name="receipt" size={24} color="#2196F3" />
             </View>
-            <Text style={styles.actionLabel}>Orders</Text>
+            <Text style={styles.actionLabel}>{t('profile.orders')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -171,17 +197,17 @@ const ProfileScreen = ({ navigation }) => {
             <View style={[styles.actionIcon, { backgroundColor: '#E8F5E9' }]}>
               <MaterialCommunityIcons name="car-multiple" size={24} color="#4CAF50" />
             </View>
-            <Text style={styles.actionLabel}>Cars</Text>
+            <Text style={styles.actionLabel}>{t('profile.cars')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
             style={styles.actionCard}
-            onPress={() => Alert.alert('Coming Soon', 'Settings feature coming soon')}
+            onPress={handleLanguageChange}
           >
             <View style={[styles.actionIcon, { backgroundColor: '#F3E5F5' }]}>
-              <Ionicons name="settings-outline" size={24} color="#9C27B0" />
+              <Ionicons name="language" size={24} color="#9C27B0" />
             </View>
-            <Text style={styles.actionLabel}>Settings</Text>
+            <Text style={styles.actionLabel}>{t('profile.language')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -191,13 +217,13 @@ const ProfileScreen = ({ navigation }) => {
             <View style={styles.sectionHeader}>
               <View style={styles.sectionHeaderLeft}>
                 <MaterialCommunityIcons name="car" size={20} color="#FF5722" />
-                <Text style={styles.sectionTitle}>Default Vehicle</Text>
+                <Text style={styles.sectionTitle}>{t('profile.defaultVehicle')}</Text>
               </View>
               <TouchableOpacity 
                 onPress={() => navigation.navigate('MyCars')}
                 style={styles.manageButton}
               >
-                <Text style={styles.manageButtonText}>Manage</Text>
+                <Text style={styles.manageButtonText}>{t('profile.manage')}</Text>
                 <Ionicons name="chevron-forward" size={16} color="#FF5722" />
               </TouchableOpacity>
             </View>
@@ -215,7 +241,7 @@ const ProfileScreen = ({ navigation }) => {
               </View>
               <View style={styles.defaultBadgeLarge}>
                 <Ionicons name="checkmark-circle" size={18} color="#4CAF50" />
-                <Text style={styles.defaultBadgeTextLarge}>Active</Text>
+                <Text style={styles.defaultBadgeTextLarge}>{t('profile.active')}</Text>
               </View>
             </View>
           </View>
@@ -224,26 +250,26 @@ const ProfileScreen = ({ navigation }) => {
             <View style={styles.sectionHeader}>
               <View style={styles.sectionHeaderLeft}>
                 <MaterialCommunityIcons name="car" size={20} color="#FF5722" />
-                <Text style={styles.sectionTitle}>My Garage</Text>
+                <Text style={styles.sectionTitle}>{t('profile.myGarage')}</Text>
               </View>
               <TouchableOpacity 
                 onPress={() => navigation.navigate('MyCars')}
                 style={styles.manageButton}
               >
-                <Text style={styles.manageButtonText}>Add Car</Text>
+                <Text style={styles.manageButtonText}>{t('profile.addCar')}</Text>
                 <Ionicons name="chevron-forward" size={16} color="#FF5722" />
               </TouchableOpacity>
             </View>
             <View style={styles.emptyCarCard}>
               <MaterialCommunityIcons name="car-off" size={48} color="#ccc" />
-              <Text style={styles.emptyCarText}>No vehicles added yet</Text>
-              <Text style={styles.emptyCarSubText}>Add a vehicle for faster checkout</Text>
+              <Text style={styles.emptyCarText}>{t('profile.noVehicles')}</Text>
+              <Text style={styles.emptyCarSubText}>{t('profile.addVehiclePrompt')}</Text>
               <TouchableOpacity 
                 style={styles.addCarButton}
                 onPress={() => navigation.navigate('MyCars')}
               >
                 <Ionicons name="add-circle" size={20} color="#fff" />
-                <Text style={styles.addCarButtonText}>Add Vehicle</Text>
+                <Text style={styles.addCarButtonText}>{t('profile.addVehicle')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -255,13 +281,13 @@ const ProfileScreen = ({ navigation }) => {
             <View style={styles.sectionHeader}>
               <View style={styles.sectionHeaderLeft}>
                 <MaterialCommunityIcons name="garage" size={20} color="#FF5722" />
-                <Text style={styles.sectionTitle}>All Vehicles ({cars.length})</Text>
+                <Text style={styles.sectionTitle}>{t('profile.allVehicles')} ({cars.length})</Text>
               </View>
               <TouchableOpacity 
                 onPress={() => navigation.navigate('MyCars')}
                 style={styles.manageButton}
               >
-                <Text style={styles.manageButtonText}>View All</Text>
+                <Text style={styles.manageButtonText}>{t('profile.viewAll')}</Text>
                 <Ionicons name="chevron-forward" size={16} color="#FF5722" />
               </TouchableOpacity>
             </View>
@@ -297,7 +323,7 @@ const ProfileScreen = ({ navigation }) => {
               <MaterialCommunityIcons name="map-marker" size={24} color="#FF5722" />
             </View>
             <View style={styles.locationInfo}>
-              <Text style={styles.locationTitle}>Delivery Location</Text>
+              <Text style={styles.locationTitle}>{t('profile.deliveryLocation')}</Text>
               <Text style={styles.locationSubtitle}>Kuwait</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color="#ccc" />
@@ -308,22 +334,22 @@ const ProfileScreen = ({ navigation }) => {
         <View style={styles.section}>
           <TouchableOpacity 
             style={styles.menuItem}
-            onPress={() => Alert.alert('Help & Support', 'Contact support: support@otlob.com')}
+            onPress={() => Alert.alert(t('profile.helpSupport'), 'Contact support: support@otlob.com')}
           >
             <View style={styles.menuItemLeft}>
               <Ionicons name="help-circle-outline" size={24} color="#666" />
-              <Text style={styles.menuItemText}>Help & Support</Text>
+              <Text style={styles.menuItemText}>{t('profile.helpSupport')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </TouchableOpacity>
 
           <TouchableOpacity 
             style={styles.menuItem}
-            onPress={() => Alert.alert('About', 'Otlob App v1.0.0\nFast food delivery service')}
+            onPress={() => Alert.alert(t('profile.about'), 'Otlob App v1.0.0\nFast food delivery service')}
           >
             <View style={styles.menuItemLeft}>
               <Ionicons name="information-circle-outline" size={24} color="#666" />
-              <Text style={styles.menuItemText}>About</Text>
+              <Text style={styles.menuItemText}>{t('profile.about')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </TouchableOpacity>
@@ -335,7 +361,7 @@ const ProfileScreen = ({ navigation }) => {
           onPress={handleLogout}
         >
           <Ionicons name="log-out-outline" size={20} color="#D32F2F" />
-          <Text style={styles.logoutText}>Log Out</Text>
+          <Text style={styles.logoutText}>{t('auth.logout')}</Text>
         </TouchableOpacity>
 
         <View style={{ height: 30 }} />

@@ -2,8 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, SafeAreaView } from 'react-native';
 import api from '../utils/api';
+import { useI18n } from '../context/I18nContext';
 
 const AddCarScreen = ({ navigation }) => {
+  const { t } = useI18n();
   const [model, setModel] = useState('');
   const [color, setColor] = useState('');
   const [plate, setPlate] = useState('');
@@ -11,7 +13,7 @@ const AddCarScreen = ({ navigation }) => {
 
   const handleAddCar = async () => {
     if (!model || !color) {
-      Alert.alert('Error', 'Please enter car model and color');
+      Alert.alert(t('auth.error'), 'Please enter car model and color');
       return;
     }
 
@@ -23,12 +25,12 @@ const AddCarScreen = ({ navigation }) => {
         plate_number: plate
       });
       
-      Alert.alert('Success', 'Car added successfully', [
-        { text: 'OK', onPress: () => navigation.goBack() }
+      Alert.alert(t('common.done'), t('cars.vehicleAdded'), [
+        { text: t('common.close'), onPress: () => navigation.goBack() }
       ]);
     } catch (error) {
       console.log(error);
-      Alert.alert('Error', 'Failed to add car');
+      Alert.alert(t('auth.error'), 'Failed to add car');
     } finally {
       setLoading(false);
     }
@@ -40,38 +42,38 @@ const AddCarScreen = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add New Car</Text>
+        <Text style={styles.headerTitle}>{t('cars.addNewVehicle')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <View style={styles.content}>
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Car Model (e.g., Toyota Prado)</Text>
+          <Text style={styles.label}>{t('cars.carModel')}</Text>
           <TextInput
             style={styles.input}
             value={model}
             onChangeText={setModel}
-            placeholder="Enter model"
+            placeholder={t('cars.enterModel')}
           />
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Color</Text>
+          <Text style={styles.label}>{t('cars.carColor')}</Text>
           <TextInput
             style={styles.input}
             value={color}
             onChangeText={setColor}
-            placeholder="Enter color"
+            placeholder={t('cars.selectColor')}
           />
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Plate Number (Optional)</Text>
+          <Text style={styles.label}>{t('cars.plateNumber')}</Text>
           <TextInput
             style={styles.input}
             value={plate}
             onChangeText={setPlate}
-            placeholder="e.g., 50-12345"
+            placeholder={t('cars.enterPlate')}
           />
         </View>
 
@@ -83,7 +85,7 @@ const AddCarScreen = ({ navigation }) => {
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.saveButtonText}>Save Car</Text>
+            <Text style={styles.saveButtonText}>{t('cars.saveVehicle')}</Text>
           )}
         </TouchableOpacity>
       </View>

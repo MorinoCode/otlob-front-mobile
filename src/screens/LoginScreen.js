@@ -11,10 +11,11 @@ import {
   ActivityIndicator, 
   Modal, 
   FlatList,
-  TouchableWithoutFeedback, // اضافه شد برای بستن کیبورد
-  Keyboard // اضافه شد
+  TouchableWithoutFeedback,
+  Keyboard
 } from 'react-native';
 import api from '../utils/api';
+import { useI18n } from '../context/I18nContext';
 
 const COUNTRY_CODES = [
   { code: 'KW', dial: '+965', flag: '🇰🇼', name: 'Kuwait' },
@@ -26,6 +27,7 @@ const COUNTRY_CODES = [
 ];
 
 const LoginScreen = ({ navigation }) => {
+  const { t } = useI18n();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [selectedCountry, setSelectedCountry] = useState(COUNTRY_CODES[0]);
   const [loading, setLoading] = useState(false);
@@ -35,7 +37,7 @@ const LoginScreen = ({ navigation }) => {
     const phoneStr = phoneNumber || '';
 
     if (phoneStr.length < 7) {
-      Alert.alert('Oops!', 'Please enter a valid mobile number 📱');
+      Alert.alert('Oops!', t('auth.invalidPhone'));
       return;
     }
 
@@ -51,9 +53,9 @@ const LoginScreen = ({ navigation }) => {
       setLoading(false);
       console.error('Login Error:', error);
       if (!error.response) {
-        Alert.alert('Connection Error', 'Check your internet connection.');
+        Alert.alert(t('auth.connectionError'), t('auth.checkConnection'));
       } else {
-        Alert.alert('Error', error.response.data.error || 'Server error');
+        Alert.alert(t('auth.error'), error.response.data.error || t('auth.serverError'));
       }
     }
   };
@@ -78,14 +80,13 @@ const LoginScreen = ({ navigation }) => {
         
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.content}>
           
-          {/* لوگو و متن خوش‌آمدگویی */}
           <View style={styles.headerContainer}>
             <Text style={styles.logoText}>Otlob</Text>
-            <Text style={styles.subText}>Hungry? Order directly to your car.</Text>
+            <Text style={styles.subText}>{t('auth.welcomeText')}</Text>
           </View>
 
           <View style={styles.formContainer}>
-            <Text style={styles.label}>Mobile Number</Text>
+            <Text style={styles.label}>{t('auth.mobileNumber')}</Text>
             
             <View style={styles.inputRow}>
               <TouchableOpacity 
@@ -111,12 +112,12 @@ const LoginScreen = ({ navigation }) => {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>Let's Eat! 🍔</Text>
+                <Text style={styles.buttonText}>{t('auth.letsEat')}</Text>
               )}
             </TouchableOpacity>
 
             <Text style={styles.terms}>
-              By continuing, you agree to our Terms & Privacy Policy.
+              {t('auth.termsText')}
             </Text>
           </View>
         </KeyboardAvoidingView>
@@ -130,14 +131,14 @@ const LoginScreen = ({ navigation }) => {
         >
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Select Country</Text>
+              <Text style={styles.modalTitle}>{t('auth.selectCountry')}</Text>
               <FlatList
                 data={COUNTRY_CODES}
                 keyExtractor={(item) => item.code}
                 renderItem={renderCountryItem}
               />
               <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
-                <Text style={styles.closeButtonText}>Close</Text>
+                <Text style={styles.closeButtonText}>{t('common.close')}</Text>
               </TouchableOpacity>
             </View>
           </View>
